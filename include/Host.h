@@ -18,7 +18,7 @@ namespace Host {
             for (unsigned k = 0; k < size; k++) {
                 for (unsigned j = 0; j < size; j++) {
                     //C[i * size + j] += A[i * size + k] * B[k * size + j];
-                    C[j * size + i] += A[k * size + i] * B[j * size + k];
+                    C[i * size + j] += A[i * size + k] * B[k * size + j];
                 }
             }
         }

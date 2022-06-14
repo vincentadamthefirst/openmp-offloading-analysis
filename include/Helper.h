@@ -7,21 +7,9 @@
 #include <algorithm>
 #include <chrono>
 
-namespace Helper {
+#define EPSILON 0.001
 
-    namespace Bench {
-        // from https://stackoverflow.com/a/53498501/5122321
-        const auto timeFuncInvocation =
-                [](auto &&func, auto &&... params) {
-                    // get time before function invocation
-                    const auto &start = std::chrono::high_resolution_clock::now();
-                    // function invocation using perfect forwarding
-                    std::forward<decltype(func)>(func)(std::forward<decltype(params)>(params)...);
-                    // get time after function invocation
-                    const auto &stop = std::chrono::high_resolution_clock::now();
-                    return std::chrono::duration<double, std::milli>(stop - start).count();
-                };
-    }
+namespace Helper {
 
     namespace Math {
         double calculateMedian(std::vector<double> values) {
@@ -75,7 +63,7 @@ namespace Helper {
         bool compare(T *A, T *B, unsigned size) {
             for (unsigned i = 0; i < size; i++) {
                 for (unsigned j = 0; j < size; j++) {
-                    if (A[i * size + j] != B[i * size + j]) {
+                    if (std::abs(A[i * size + j] - B[i * size + j]) > EPSILON) {
                         return false;
                     }
                 }

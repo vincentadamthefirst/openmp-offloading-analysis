@@ -4,7 +4,7 @@
 #include "MatrixMultiplication.cpp"
 #include "include/argparse.h"
 
-#define MATRIX_SIZE 4096        // size of the matrices
+#define MATRIX_SIZE 8192        // size of the matrices
 #define TYPE float              // data type to use
 
 #define REPETITIONS 11           // repetitions for each method
@@ -15,7 +15,8 @@
 
 void run(const std::string& filePath, bool verbose, bool csv) {
     MatrixMultiplication<TYPE> mm(filePath, verbose, csv, MATRIX_SIZE);
-    mm.enableBlockSizes(BLOCKSIZE_START, BLOCKSIZE_END).enableRepetitions(REPETITIONS);
+    //mm.enableBlockSizes(BLOCKSIZE_START, BLOCKSIZE_END).enableRepetitions(REPETITIONS).enableCheck();
+    mm.enableBlockSizes(1,1);
     mm.printInfo();
     mm.execute();
 }

@@ -146,8 +146,8 @@ private:
 
 private:
     /// definitions for the matrix multiplication methods to measure
-    typedef void (* vBlockedMultiplication)(T *A, T *B, T *C, uint32_t size, uint32_t blockSize);
-    typedef void (* vBasicMultiplication)(T *A, T *B, T *C, uint32_t size);
+    typedef double (* vBlockedMultiplication)(T *A, T *B, T *C, uint32_t size, uint32_t blockSize);
+    typedef double (* vBasicMultiplication)(T *A, T *B, T *C, uint32_t size);
 
     const std::vector<MultiplicationMethod<T, vBasicMultiplication>> basicMethods = {
 //            {Target::multiplyJIKSharedMemory<T>, "JIK (shmem)"},
@@ -155,14 +155,15 @@ private:
             {Target::multiplyIKJ<T>, "IKJ"},
             {Target::multiplyJIK<T>, "JIK"},
             {Target::multiplyJKI<T>, "JKI"},
-            {Target::multiplyIJKCollapsed<T>, "IJK (collapsed)"},
-            {Target::multiplyIKJCollapsed<T>, "IKJ (collapsed)"},
+            {Target::multiplyIJKCollapsed<T>, "IJK (collapsed (2))"},
+            //{Target::multiplyIJKCollapsed3<T>, "IJK (collapsed (3))"},
+            //{Target::multiplyIKJCollapsed<T>, "IKJ (collapsed)"},
             {Target::multiplyJIKCollapsed<T>, "JIK (collapsed)"},
-            {Target::multiplyJKICollapsed<T>, "JKI (collapsed)"},
+            //{Target::multiplyJKICollapsed<T>, "JKI (collapsed)"},
     };
 
     const std::vector<MultiplicationMethod<T, vBlockedMultiplication>> blockedMethods = {
-            {Target::multiplyIJKBlocked<T>, "IKJ (blocked)"},
-            {Target::multiplyIJKBlocked<T>, "JIK (blocked)"},
+           {Target::multiplyIJKBlocked<T>, "IJK (blocked)"},
+           {Target::multiplyIKJBlocked<T>, "IKJ (blocked)"},
     };
 };

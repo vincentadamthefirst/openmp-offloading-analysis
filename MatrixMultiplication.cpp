@@ -19,8 +19,7 @@ void MatrixMultiplication<T>::runBlockedMethods() {
             bool correctness = false;
 
             for (uint32_t repetition = 0; repetition < repetitions; repetition++) {
-                auto time = Helper::Bench::timeFuncInvocation(blockedMethods[method].method, A, B, C, matrixSize,
-                                                              blockSize);
+                auto time = blockedMethods[method].method(A, B, C, matrixSize, blockSize);
                 runtimes.push_back(time);
 
                 if (checkMatrix && repetition == 0) {
@@ -63,7 +62,7 @@ void MatrixMultiplication<T>::runBasicMethods() {
         bool correctness = false;
 
         for (uint32_t repetition = 0; repetition < repetitions; repetition++) {
-            auto time = Helper::Bench::timeFuncInvocation(basicMethods[method].method, A, B, C, matrixSize);
+            auto time = basicMethods[method].method(A, B, C, matrixSize);
             runtimes.push_back(time);
 
             if (checkMatrix && repetition == 0) {
