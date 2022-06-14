@@ -9,6 +9,11 @@
 
 #define EPSILON 0.001
 
+template<typename ...Args>
+void LOG(Args && ...args) {
+    (std::cout << ... << args);
+}
+
 namespace Helper {
 
     namespace Math {

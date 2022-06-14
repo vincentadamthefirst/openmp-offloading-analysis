@@ -4,9 +4,9 @@
 #include <utility>
 #include <vector>
 
-#include "include/Target.h"
-#include "include/Host.h"
-#include "include/Helper.h"
+#include "../include/Target.h"
+#include "../include/Host.h"
+#include "../include/Helper.h"
 
 template<typename T, typename M>
 struct MultiplicationMethod {

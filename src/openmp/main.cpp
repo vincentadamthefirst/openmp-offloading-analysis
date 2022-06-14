@@ -2,7 +2,7 @@
 #include <fstream>
 
 #include "MatrixMultiplication.cpp"
-#include "include/argparse.h"
+#include "../include/argparse.h"
 
 #define MATRIX_SIZE 8192        // size of the matrices
 #define TYPE float              // data type to use
