@@ -150,20 +150,18 @@ private:
     typedef double (* vBasicMultiplication)(T *A, T *B, T *C, uint32_t size);
 
     const std::vector<MultiplicationMethod<T, vBasicMultiplication>> basicMethods = {
-//            {Target::multiplyJIKSharedMemory<T>, "JIK (shmem)"},
-            {Target::multiplyIJK<T>, "IJK"},
-            {Target::multiplyIKJ<T>, "IKJ"},
-            {Target::multiplyJIK<T>, "JIK"},
-            {Target::multiplyJKI<T>, "JKI"},
-            {Target::multiplyIJKCollapsed<T>, "IJK (collapsed (2))"},
-            //{Target::multiplyIJKCollapsed3<T>, "IJK (collapsed (3))"},
-            //{Target::multiplyIKJCollapsed<T>, "IKJ (collapsed)"},
-            {Target::multiplyJIKCollapsed<T>, "JIK (collapsed)"},
-            //{Target::multiplyJKICollapsed<T>, "JKI (collapsed)"},
+
+//            {Target::multiplyIJK<T>, "IJK"},
+//            {Target::multiplyIKJ<T>, "IKJ"},
+//            {Target::multiplyJIK<T>, "JIK"},
+//            {Target::multiplyJKI<T>, "JKI"},
+//            {Target::multiplyIJKCollapsed<T>, "IJK (collapsed)"},
+//            {Target::multiplyJIKCollapsed<T>, "JIK (collapsed)"},
     };
 
     const std::vector<MultiplicationMethod<T, vBlockedMultiplication>> blockedMethods = {
-           {Target::multiplyIJKBlocked<T>, "IJK (blocked)"},
-           {Target::multiplyIKJBlocked<T>, "IKJ (blocked)"},
+            {Target::multiplyIJKBlocked2<T>, "IJK Blocked 2"},
+//           {Target::multiplyIJKBlocked<T>, "IJK (blocked)"},
+//           {Target::multiplyIKJBlocked<T>, "IKJ (blocked)"},
     };
 };

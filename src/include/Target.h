@@ -10,6 +10,16 @@
 #define BLKDIM 16
 #define BLOCK_SIZE_K 1024
 
+#ifndef MATRIX_SIZE
+#define MATRIX_SIZE 4096
+#endif
+
+#ifndef BLOCK_SIZE
+#define BLOCK_SIZE 64
+#endif
+
+#define BLOCK_UPPER MATRIX_SIZE / BLOCK_SIZE
+
 namespace Target {
 
     template<typename T>
@@ -145,6 +155,32 @@ namespace Target {
                             tmp += a_tmp[k - kk] * B[k * size + j];
                         }
                         C[i * size + j] += tmp;
+                    }
+                }
+            }
+        }
+        t2 = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration<double, std::milli>(t2 - t1).count();
+    }
+
+    template<typename T>
+    double multiplyIJKBlocked2(T *A, T *B, T *C, uint32_t size, uint32_t blockSize) {
+        std::chrono::time_point<std::chrono::high_resolution_clock> t1, t2;
+#pragma omp target data map(to:size, blockSize, A[0:size*size], B[0:size * size]) map(tofrom:C[0:size * size])
+        {
+            t1 = std::chrono::high_resolution_clock::now();
+
+#pragma omp target teams parallel for collapse(2)
+            for (size_t block_i = 0; block_i < MATRIX_SIZE; block_i += BLOCK_SIZE) {
+                for (size_t block_j = 0; block_j < MATRIX_SIZE; block_j += BLOCK_SIZE) {
+
+#pragma omp parallel for collapse(2) schedule(static, 1)
+                    for (size_t i = block_i; i < BLOCK_SIZE; i++) {
+                        for (size_t j = block_j; j < BLOCK_SIZE; j++) {
+                            for (size_t k = 0; k < MATRIX_SIZE; k++) {
+                                C[i * size + j] += A[i * size + k] * B[k * size + j];
+                            }
+                        }
                     }
                 }
             }
