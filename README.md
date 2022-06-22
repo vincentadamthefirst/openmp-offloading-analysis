@@ -9,15 +9,15 @@ Currently still W.I.P.
 
 ### OpenMP
 
-| compiler | command                                                           |
-|----------|:------------------------------------------------------------------|
-| nvhpc    | `nvc++ -std=c++17 -mp=gpu -target=gpu src/main.cpp -o matmul_omp` |
+| compiler | command                                                                  |
+|----------|:-------------------------------------------------------------------------|
+| nvhpc    | `nvc++ -std=c++17 -mp=gpu -target=gpu src/openmp/main.cpp -o matmul_omp` |
 
 ### CUBLAS
 
-| compiler | command                                                                                |
-|----------|:---------------------------------------------------------------------------------------|
-| nvcc     | `nvcc -std=c++17 -arch=sm_80 src/matmul_cublas.cpp -lcublas -lcurand -o matmul_cublas` |
+| compiler | command                                                                                       |
+|----------|:----------------------------------------------------------------------------------------------|
+| nvcc     | `nvcc -std=c++17 -arch=sm_80 src/cublas/matmul_cublas.cpp -lcublas -lcurand -o matmul_cublas` |
 
 ## Execution
 

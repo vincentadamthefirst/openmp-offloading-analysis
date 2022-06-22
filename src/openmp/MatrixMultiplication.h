@@ -50,6 +50,8 @@ public:
         checkMatrix = Helper::Matrix::initializeZero<T>(matrixSize);
         Host::multiplyIKJ(A, B, checkMatrix, matrixSize);
 
+        Helper::Matrix::print<T>(checkMatrix, matrixSize);
+
         std::cout << "Done." << std::endl;
 
         return *this;
@@ -160,7 +162,7 @@ private:
     };
 
     const std::vector<MultiplicationMethod<T, vBlockedMultiplication>> blockedMethods = {
-            {Target::multiplyIJKBlocked2<T>, "IJK Blocked 2"},
+            {Target::multiplyIJKBlocked3<T>, "IJK Blocked 3"},
 //           {Target::multiplyIJKBlocked<T>, "IJK (blocked)"},
 //           {Target::multiplyIKJBlocked<T>, "IKJ (blocked)"},
     };

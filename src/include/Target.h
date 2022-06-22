@@ -11,14 +11,18 @@
 #define BLOCK_SIZE_K 1024
 
 #ifndef MATRIX_SIZE
-#define MATRIX_SIZE 4096
+#define MATRIX_SIZE 32
 #endif
 
 #ifndef BLOCK_SIZE
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 16
 #endif
 
-#define BLOCK_UPPER MATRIX_SIZE / BLOCK_SIZE
+
+#define THREADS_PER_BLOCK BLOCK_SIZE * BLOCK_SIZE
+
+//#define BLOCK_UPPER MATRIX_SIZE / BLOCK_SIZE
+#define BLOCK_UPPER 2
 
 namespace Target {
 
@@ -68,7 +72,7 @@ namespace Target {
                             cValue += ashm[0xf][threadRow] * bshm[threadCol][0xf];
 #pragma omp barrier
                         }
-                        C[actualRow * size + actualCol] = cValue;
+                        C[actualRow * size + actualCol] += cValue;
                     } // parallel region
                 } // i loop
             } // j loop
@@ -164,6 +168,74 @@ namespace Target {
     }
 
     template<typename T>
+    double multiplyIJKBlocked3(T *A, T *B, T *C, uint32_t size, uint32_t blockSize) {
+        std::chrono::time_point<std::chrono::high_resolution_clock> t1, t2;
+#pragma omp target data map(to:size, blockSize, A[0:size*size], B[0:size * size]) map(tofrom:C[0:size * size])
+        {
+            t1 = std::chrono::high_resolution_clock::now();
+
+#pragma omp target teams shared(A, B, C, size, blockSize)
+            {
+                T a_shm[BLOCK_SIZE][BLOCK_SIZE];
+                T b_shm[BLOCK_SIZE][BLOCK_SIZE];
+
+#pragma omp distribute collapse(2)
+                for (size_t block_i = 0; block_i < BLOCK_UPPER; block_i++) {
+                    for (size_t block_j = 0; block_j < BLOCK_UPPER; block_j++) {
+#pragma omp parallel num_threads(BLOCK_SIZE * BLOCK_SIZE) shared(A, B, C, size, blockSize, a_shm, b_shm)
+                        {
+                            auto threadNum = omp_get_thread_num();
+
+                            auto threadIdx = threadNum % BLOCK_SIZE;
+                            auto threadIdy = threadNum / BLOCK_SIZE;
+
+                            auto blockIdx = block_i * BLOCK_SIZE;
+                            auto blockIdy = block_j * BLOCK_SIZE;
+
+                            auto index_i = blockIdx + threadIdx;
+                            auto index_j = blockIdy + threadIdy;
+
+                            T tmp_c = C[index_i * size + index_j];
+
+                            auto begin_a = size * BLOCK_SIZE * blockIdy;
+                            auto end_a = begin_a + size - 1;
+                            auto begin_b = BLOCK_SIZE * blockIdx;
+
+                            tmp_c = 0;
+
+                            for (size_t i = begin_a, j = begin_b; i <= end_a; i += BLOCK_SIZE, j+= (BLOCK_SIZE * size)) {
+                                a_shm[threadIdy][threadIdx] = A[i + size * threadIdy + threadIdx];
+                                b_shm[threadIdx][threadIdy] = B[j + size * threadIdx + threadIdy];
+
+#pragma omp barrier
+                                for (size_t k = 0; k < BLOCK_SIZE; k++) {
+                                    tmp_c += a_shm[threadIdy][k] * b_shm[k][threadIdx];
+                                }
+#pragma omp barrier
+                            }
+
+                            C[size * BLOCK_SIZE * blockIdy + BLOCK_SIZE * blockIdx + size * threadIdy + threadIdx] = tmp_c;
+
+//                            for (size_t k = 0; k < BLOCK_SIZE; k++) {
+//                                a_shm[threadIdy][threadIdx] = A[index_i * size + (k + threadIdy)];
+//                                b_shm[threadIdy][threadIdx] = B[(k + threadIdx) * size + index_j];
+//#pragma omp barrier
+//                                tmp_c += a_shm[k][threadIdx] * b_shm[threadIdy][k];
+//#pragma omp barrier
+////
+//                            }
+////
+//                            C[index_i * size + index_j] += tmp_c;
+                        }
+                    }
+                }
+            }
+        }
+        t2 = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration<double, std::milli>(t2 - t1).count();
+    }
+
+    template<typename T>
     double multiplyIJKBlocked2(T *A, T *B, T *C, uint32_t size, uint32_t blockSize) {
         std::chrono::time_point<std::chrono::high_resolution_clock> t1, t2;
 #pragma omp target data map(to:size, blockSize, A[0:size*size], B[0:size * size]) map(tofrom:C[0:size * size])
@@ -188,6 +260,8 @@ namespace Target {
         t2 = std::chrono::high_resolution_clock::now();
         return std::chrono::duration<double, std::milli>(t2 - t1).count();
     }
+
+
 
     template<typename T>
     double multiplyIKJBlocked(T *A, T *B, T *C, uint32_t size, uint32_t blockSize) {

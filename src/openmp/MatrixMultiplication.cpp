@@ -31,6 +31,8 @@ void MatrixMultiplication<T>::runBlockedMethods() {
                     std::cout << "    " << "Repetition " << repetition << ": " << time << "ms ("
                               << Helper::Math::msToGFLOPs(time, matrixSize) << " GFLOP/s)" << std::endl;
 
+                Helper::Matrix::print<T>(C, matrixSize);
+
                 memset(C, 0, matrixSize * matrixSize * sizeof(T));
             }
 
@@ -102,7 +104,9 @@ void MatrixMultiplication<T>::execute() {
     // prepare file
     writeFileHeader();
 
-    // execute actual matrix multiplication
-    runBasicMethods();
-    runBlockedMethods();
+    // execute actual matrix multiplications
+    if (basicMethods.size() > 0)
+        runBasicMethods();
+    if (blockedMethods.size() > 0)
+        runBlockedMethods();
 }
