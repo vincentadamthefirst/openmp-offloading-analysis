@@ -4,9 +4,9 @@
 #include <chrono>
 #include <cstdlib>
 
-#include "../include/argparse.h"
-#include "../include/Helper.h"
+#include "../../include/Helper.hpp"
 #include "cuda_helper.cuh"
+#include "../../libs/cmdparser.hpp"
 
 #include "cublas_v2.h"
 #include "curand.h"
@@ -122,7 +122,7 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
                           << Helper::Math::msToGFLOPs(runtime, matrixSize) << " GFLOP/s)" << std::endl;
         }
 
-        auto timeMed = Helper::Math::calculateMedian(runtimes);
+        auto timeMed = std::get<0>(Helper::Math::calculateMedian(runtimes));
         auto timeAvg = Helper::Math::calculateMean(runtimes);
 
         std::string info = "MED= " + std::to_string(timeMed) + "ms (" +
@@ -149,29 +149,66 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
     cublasDestroy(handle);
 }
 
-int main(int ac, char* av[]) {
-    argparse::Parser parser;
-    auto matrixSizeStart =
-            parser.AddArg<int>("matrix_size_start", 's',
-                               "The start size of matrices (will get doubled until matrix_size_end)").Default(4096);
-    auto matrixSizeEnd = parser.AddArg<int>("matrix_size_end", 'e',
-                                            "The end size of matrices (will be included)").Default(16384);
-    auto repetitions = parser.AddArg<int>("repetitions", 'r', "Repeat each matrix computation this amount").Default(11);
-    auto tensor = parser.AddFlag("tensor", 't', "Explicitly active tensor functionality");
-    auto format = parser.AddArg<std::string>("format", 'f', "The formatting of the output").Options(
-            {"csv", "txt"}).Default("txt");
-    auto path = parser.AddArg<std::string>("file", 'p', "The file to append the output to").Required();
-    auto seed = parser.AddArg<unsigned long long>("seed", "The seed to fill the random matrices with").Default(
-            (unsigned long long) clock());
-    auto verbose = parser.AddFlag("verbose", 'v', "Enable verbose output.");
-    auto precision = parser.AddArg<std::string>("precision", "The data type to use on the accelerator").Options(
-            {"f32", "f64"}).Default("f64");
+void configureParser(cli::Parser& parser) {
+    parser.set_optional<int>("s", "matrix_size_start", 4096,
+                             "Start size of matrices. Will be doubled until matrix_size_end.");
+    parser.set_optional<int>("e", "matrix_size_end", 16384, "End size of matrices (will be included).");
+    parser.set_optional<int>("r", "repetitions", 11, "Set the amount of repetitions for each matrix.");
+    parser.set_optional<bool>("t", "tensor", false, "Explicitly activate tensor functionality.");
+    parser.set_optional<std::string>("ft", "file_type", "txt", "Set the formatting of the output. Must be 'txt' or "
+                                                               "'csv'.");
+    parser.set_optional<std::string>("f", "file", "GENERATE_NEW",
+                                     "File the output should be written to. If no file is given a "
+                                     "new file will be generated next to the executable.");
+    parser.set_optional<bool>("v", "verbose", false, "Enable verbose output.");
+    parser.set_optional<std::string>("p", "precision", "f64","The data type to use on the accelerator.");
+}
 
-    parser.ParseArgs(ac, av);
+int main(int argc, char* argv[]) {
+    cli::Parser parser(argc, argv);
+    configureParser(parser);
+    parser.run_and_exit_if_error();
 
-    if (*precision == "f32") {
-        run<float>(*path, *format == "csv", *verbose, *repetitions, *matrixSizeStart, *matrixSizeEnd, *tensor, *seed);
+    auto csv = parser.get<std::string>("ft") == "csv";
+    auto precision = parser.get<std::string>("p");
+    auto filename = parser.get<std::string>("f");
+    auto verbose = parser.get<bool>("v");
+    auto repetitions = parser.get<int>("r");
+    repetitions = repetitions < 1 ? 1 : repetitions;
+    auto matrixSizeStart = parser.get<int>("s");
+    auto matrixSizeEnd = parser.get<int>("e");
+    auto tensor = parser.get<bool>("t");
+
+    time_t rawtime;
+    struct tm * timeinfo;
+    char buffer[80];
+
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(buffer,sizeof(buffer),"%d-%m-%Y_%H:%M:%S",timeinfo);
+    std::string timeString(buffer);
+
+    std::ifstream fileCheck(filename.c_str());
+    if (filename == "GENERATE_NEW" || !fileCheck.good()) {
+        // no file found, create a file
+        std::string newName =
+                filename == "GENERATE_NEW" ? "cublas_result_" + std::to_string(matrixSizeStart) + "-" +
+                                             std::to_string(matrixSizeEnd) + "_" + timeString + (csv ? ".csv" : ".txt")
+                                           : filename;
+        std::cout << "No output file found, generate a new one (" << newName << ")" << std::endl;
+
+        fileCheck.close();
+        std::ofstream newFile(newName);
+        newFile.close();
+        filename = newName;
+    }
+
+    if (precision == "f32") {
+        run<float>(filename, csv, verbose, repetitions, matrixSizeStart, matrixSizeEnd, tensor,
+                   (unsigned long long) clock());
     } else {
-        run<double>(*path, *format == "csv", *verbose, *repetitions, *matrixSizeStart, *matrixSizeEnd, *tensor, *seed);
+        run<double>(filename, csv, verbose, repetitions, matrixSizeStart, matrixSizeEnd, tensor,
+                    (unsigned long long) clock());
     }
 }

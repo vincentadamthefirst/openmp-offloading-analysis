@@ -7,21 +7,60 @@
 #include <algorithm>
 #include <chrono>
 
-#define EPSILON 0.001
+#define EPSILON 0.001       // epsilon for float comparison
+#define BAR_SIZE 70         // size of progress bars
 
 namespace Helper {
 
+    namespace IO {
+        /**
+         * Pads a string with a given char to a given length
+         * From https://stackoverflow.com/a/667219
+         * @param str the string to pad
+         * @param num desired length
+         */
+        std::string padLeft(std::string str, const size_t num, char padChar = ' ') {
+            if(num > str.size())
+                str.insert(0, num - str.size(), padChar);
+            return str;
+        }
+
+        /**
+         * Pads a string with a given char to a given length
+         * From https://stackoverflow.com/a/667219
+         * @param str the string to pad
+         * @param num desired length
+         */
+        std::string padRight(std::string str, const size_t num, char padChar = ' ') {
+            if(num > str.size())
+                str.insert(str.length(), num - str.size(), padChar);
+            return str;
+        }
+
+        void printProgress(double progress, std::string info, bool isFinal = false) {
+            std::cout << "[";
+            int pos = BAR_SIZE * progress;
+            for (int i = 0; i < BAR_SIZE; ++i) {
+                if (i < pos) std::cout << "=";
+                else if (i == pos) std::cout << ">";
+                else std::cout << " ";
+            }
+            std::cout << "] " << int(progress * 100.0) << "% " << info << (isFinal ? " \n" : " \r");
+            std::cout.flush();
+        }
+    }
+
     namespace Math {
-        double calculateMedian(std::vector<double> values) {
+        std::tuple<double, double, double> calculateMedian(std::vector<double> values) {
             auto size = values.size();
             if (size == 1)
-                return values[0];
+                return std::make_tuple(values[0], values[0], values[0]);
 
             std::sort(values.begin(), values.end());
             if (size % 2 == 0) {
-                return (values[size / 2 - 1] + values[size / 2]) / 2;
+                return std::make_tuple((values[size / 2 - 1] + values[size / 2]) / 2, values[0], values[size - 1]);
             } else {
-                return values[size / 2];
+                return std::make_tuple(values[size / 2], values[0], values[size - 1]);
             }
         }
 
@@ -34,10 +73,9 @@ namespace Helper {
             return sum / size;
         }
 
-        double msToGFLOPs(double ms, uint32_t matrixSize) {
-            double operations = (2.0 * (double) matrixSize - 1.0) * (double) matrixSize * (double) matrixSize;
-            return (operations / 1000000000) /* 10^9 operations */
-                   / ((double) ms / 1000) /* per second */;
+        double msToGFLOPs(double ms, double matrixSize) {
+            double operations = (2.0 * matrixSize - 1.0) * matrixSize * matrixSize;
+            return (operations / 1000000000) /* 10^9 operations */ / ((double) ms / 1000) /* per second */;
         }
     }
 
@@ -68,6 +106,7 @@ namespace Helper {
                     }
                 }
             }
+
             return true;
         }
 
