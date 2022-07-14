@@ -15,7 +15,8 @@ enum Method {
     JIK_COLLAPSED = 5,
     TILED_SHMEM = 6,
     TILED_SHMEM_MEM_DIRECTIVES = 7,
-    IJK_COLLAPSED_LOOP = 8
+    IJK_COLLAPSED_LOOP = 8,
+    IJK_LOOP = 9,
 };
 
 // lookup of method names
@@ -28,7 +29,8 @@ static std::map<std::string, Method> methodNamesMapping = {
         {"jik_collapsed",               Method::JIK_COLLAPSED},
         {"tiled_shmem",                 Method::TILED_SHMEM},
         {"tiled_shmem_mem_directives",  Method::TILED_SHMEM_MEM_DIRECTIVES},
-        {"ijk_collapsed_loop",          Method::IJK_COLLAPSED_LOOP}};
+        {"ijk_collapsed_loop",          Method::IJK_COLLAPSED_LOOP},
+        {"ijk_loop", Method::IJK_LOOP}};
 
 static std::map<Method, std::string> methodNamesMappingReversed = {
         {Method::IJK,                        "ijk"},
@@ -39,7 +41,8 @@ static std::map<Method, std::string> methodNamesMappingReversed = {
         {Method::JIK_COLLAPSED,              "jik_collapsed"},
         {Method::TILED_SHMEM,                "tiled_shmem"},
         {Method::TILED_SHMEM_MEM_DIRECTIVES, "tiled_shmem_mem_directives"},
-        {Method::IJK_COLLAPSED_LOOP,         "ijk_collapsed_loop"}
+        {Method::IJK_COLLAPSED_LOOP,         "ijk_collapsed_loop"},
+        {Method::IJK_LOOP,         "ijk_loop"},
 };
 
 namespace Target {
@@ -89,6 +92,26 @@ namespace Target {
 #pragma omp target teams loop collapse(2) shared(A, B, C) default(none)
             for (size_t i = 0; i < SIZE; i++) {
                 for (size_t j = 0; j < SIZE; j++) {
+                    for (size_t k = 0; k < SIZE; k++) {
+                        C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
+                    }
+                }
+            }
+            end = omp_get_wtime();
+        }
+        return (end - start) * 1000.0;
+    }
+
+    double multiplyIJKCompleteLoop(const DT *A, const DT *B, DT *C) {
+        double start, end;
+#pragma omp target data map(A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
+        {
+            start = omp_get_wtime();
+#pragma omp target teams loop
+            for (size_t i = 0; i < SIZE; i++) {
+#pragma omp loop
+                for (size_t j = 0; j < SIZE; j++) {
+#pragma omp loop bind(thread)
                     for (size_t k = 0; k < SIZE; k++) {
                         C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                     }

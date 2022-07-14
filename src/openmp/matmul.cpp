@@ -106,6 +106,17 @@ void MatrixMultiplication::execute(Method method) {
             runMethod(Target::multiplyIJKCollapsedLoop, method);
 #endif
             break;
+        case Method::IJK_LOOP:
+#if NO_LOOP_DIRECTIVES
+            if (verbose) {
+                std::cout << "Skipping loop directive matrix multiplication due to compiler flag." << std::endl;
+                std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
+            }
+            runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
+#else
+            runMethod(Target::multiplyIJKCompleteLoop, method);
+#endif
+            break;
     }
 }
 

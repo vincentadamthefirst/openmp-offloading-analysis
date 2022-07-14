@@ -3,9 +3,18 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <set>
 
 #include "matmul.cpp"
 #include "../../libs/cmdparser.hpp"
+
+static std::map<std::string, std::vector<Method>> methodGroups = {
+        {"basic", {Method::IJK, Method::IJK_COLLAPSED, Method::IKJ, Method::JIK, Method::JIK_COLLAPSED, Method::JKI}},
+        {"collapsed", {Method::JIK_COLLAPSED, Method::IJK_COLLAPSED, Method::IJK_COLLAPSED_LOOP}},
+        {"loop", {Method::IJK_COLLAPSED_LOOP, Method::IJK_LOOP}},
+        {"tiled", {Method::TILED_SHMEM_MEM_DIRECTIVES, Method::TILED_SHMEM}},
+};
+
 
 void configureParser(cli::Parser& parser) {
     parser.set_optional<std::string>("f", "file", "GENERATE_NEW",
@@ -21,6 +30,7 @@ void configureParser(cli::Parser& parser) {
     parser.set_optional<bool>("p", "print_methods", false, "Prints all available methods.");
     parser.set_optional<bool>("c", "comparison", false, "Enables result checking of "
                                                         "GPU calculations with previously generated CPU ones.");
+    parser.set_optional<bool>("np", "no-print", false, "Disables the printing to file.");
 }
 
 int main(int argc, char* argv[]) {
@@ -32,37 +42,34 @@ int main(int argc, char* argv[]) {
     // check if the user wants to print the available matrix multiplication methods
     auto printMethods = parser.get<bool>("p");
     if (printMethods) {
-        for (const auto &pair: methodNamesMapping) {
-            std::cout << pair.first << std::endl;
+        for (const auto &pair : methodGroups) {
+            std::cout << pair.first << ":" << std::endl;
+            for (const auto &method : pair.second) {
+                std::cout << "  - " << methodNamesMappingReversed[method] << std::endl;
+            }
         }
-        std::cout << "\nall*\ntiled*\nnon-tiled*\n\n(entries marked with '*' are groups)" << std::endl;
+        std::cout << std::endl << "all: contains all methods" << std::endl;
         exit(0);
     }
 
     // retrieve all methods that should be run
-    auto methodsToRun = parser.get<std::vector<std::string>>("m");
-    auto withTiled = std::count(methodsToRun.begin(), methodsToRun.end(), "tiled") != 0;
-    auto withNonTiled = std::count(methodsToRun.begin(), methodsToRun.end(), "non_tiled") != 0;
-    if (withTiled && withNonTiled) methodsToRun = {"all"};
-    else if (withTiled)
-        methodsToRun = {"tiled_shmem", "tiled_shmem_mem_directives"};
-    else if (withNonTiled)
-        methodsToRun = {"ijk", "ikj", "jik", "jki", "ijk_collapsed", "jik_collapsed", "ijk_collapsed_loop"};
-    if (std::count(methodsToRun.begin(), methodsToRun.end(), "all") != 0) {
-        methodsToRun.clear();
-        for(auto & it : methodNamesMapping) {
-            methodsToRun.push_back(it.first);
-        }
-    }
-
-    // check correctness of methodsToRun
-    for (auto& methodString : methodsToRun) {
-        std::transform(methodString.begin(), methodString.end(), methodString.begin(), ::tolower);
-        if (methodNamesMapping.find(methodString) == methodNamesMapping.end()) {
-            std::cout << "The method " << methodString << " does not exist. The program will be terminated."
+    auto methodsToRunParser = parser.get<std::vector<std::string>>("m");
+    auto methodsToRun = std::set<Method>();
+    for (const auto& parserMethod : methodsToRunParser) {
+        if (methodNamesMapping.find(parserMethod) != methodNamesMapping.end()) {
+            methodsToRun.insert(methodNamesMapping[parserMethod]);
+        } else if (methodGroups.find(parserMethod) != methodGroups.end()) {
+            auto methodVector = methodGroups[parserMethod];
+            std::copy(methodVector.begin(), methodVector.end(), std::inserter(methodsToRun, methodsToRun.end()));
+        } else if (parserMethod == "all") {
+            for (const auto& pair : methodGroups) {
+                auto methodVector = methodGroups[pair.first];
+                std::copy(methodVector.begin(), methodVector.end(), std::inserter(methodsToRun, methodsToRun.end()));
+            }
+            break;
+        } else {
+            std::cout << parserMethod << " is not a valid method, use --print_methods to see a list of methods."
                       << std::endl;
-            std::cout << "Use '-print_methods' to get a list of possible methods" << std::endl;
-            exit(-1);
         }
     }
 
@@ -72,6 +79,7 @@ int main(int argc, char* argv[]) {
     auto repetitions = parser.get<int>("r");
     auto file = parser.get<std::string>("f");
     auto compare = parser.get<bool>("c");
+    auto noPrint = parser.get<bool>("np");
 
     MatrixMultiplication matrixMultiplication(file, verbose, csv);
     matrixMultiplication.enableCheck(compare).enableRepetitions(repetitions);
@@ -84,15 +92,19 @@ int main(int argc, char* argv[]) {
         largestMethodNameLength = std::max(largestMethodNameLength, pair.first.length());
     }
 
+    auto it = methodsToRun.begin();
     for (auto i = 0; i < methodsToRun.size(); i++) {
-        auto methodString = methodsToRun[i];
-        matrixMultiplication.execute(methodNamesMapping[methodString]);
+        matrixMultiplication.execute(*it);
 
         if (!verbose)
-            Helper::IO::printProgress((i + 1) / (double) methodsToRun.size(),
-                                      Helper::IO::padRight("(" + methodString + ")", largestMethodNameLength + 2),
-                                      i == methodsToRun.size() - 1);
+            Helper::IO::printProgress((i + 1) / (double) methodsToRunParser.size(),
+                                      Helper::IO::padRight("(" + methodNamesMappingReversed[*it] + ")",
+                                                           largestMethodNameLength + 2),
+                                      i == methodsToRunParser.size() - 1);
+
+        it++;
     }
 
-    matrixMultiplication.writeFile();
+    if (!noPrint)
+        matrixMultiplication.writeFile();
 }
