@@ -10,7 +10,7 @@
 #include <cstring>
 
 #ifndef DATA_TYPE
-#define DATA_TYPE float
+#define DATA_TYPE double
 #endif
 
 #ifndef MATRIX_SIZE
@@ -126,8 +126,6 @@ int main() {
     std::cout.precision(3);
     std::cout << "Average execution time = " << std::fixed << meanExecTime << "ms (" << std::fixed << gflops
               << " GFLOP/s) " << std::endl;
-
-    std::cout << C[(MATRIX_SIZE - 1) * (MATRIX_SIZE - 1)] << std::endl;
 
     free(A);
     free(B);

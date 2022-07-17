@@ -11,7 +11,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
     for (size_t repetition = 0; repetition < repetitions; repetition++) {
         if (verbose) {
             Helper::IO::printProgress((double) (repetition) / repetitions,
-                                      "(" + methodNamesMappingReversed[method] + ")");
+                                      "(" + methodNamesMapping[method] + ")");
         }
 
         auto execTimeMs = functionPtr(A, B, C);
@@ -20,8 +20,8 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
             auto correctness = Helper::Matrix::compare<DT>(C, checkMatrix, MATRIX_SIZE);
             if (!correctness) {
                 Helper::IO::printProgress((double) (repetition + 1) / repetitions,
-                                          "(" + methodNamesMappingReversed[method] + " ==ABORTED== )", true);
-                std::cerr << "Method " << methodNamesMappingReversed[method]
+                                          "(" + methodNamesMapping[method] + " ==ABORTED== )", true);
+                std::cerr << "Method " << methodNamesMapping[method]
                           << " did not produce correct results. Aborting." << std::endl << std::endl;
                 break;
             }
@@ -29,7 +29,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
 
         if (verbose) {
             Helper::IO::printProgress((double) (repetition + 1) / repetitions,
-                                      "(" + methodNamesMappingReversed[method] + ")");
+                                      "(" + methodNamesMapping[method] + ")");
         }
 
         executionTimes.push_back(execTimeMs);
@@ -39,7 +39,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
 
     if (executionTimes.size() == repetitions) {
         if (verbose)
-            Helper::IO::printProgress(1.0, "(" + methodNamesMappingReversed[method] + ")", true); // print the final bar
+            Helper::IO::printProgress(1.0, "(" + methodNamesMapping[method] + ")", true); // print the final bar
 
         auto meanExecTimeMs = Helper::Math::calculateMean(executionTimes);
         auto medianExecTimeMs = Helper::Math::calculateMedian(executionTimes);
@@ -51,7 +51,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
                               std::get<0>(medianExecTimeMs), meanExecTimeMs});
 
         if (verbose)
-            std::cout << methodNamesMappingReversed[method] << ": " << "AVG=" << meanExecTimeMs << "ms, (" << meanGflops
+            std::cout << methodNamesMapping[method] << ": " << "AVG=" << meanExecTimeMs << "ms, (" << meanGflops
                       << " GFLOP/s) & MED=" << std::get<0>(medianExecTimeMs) << "ms, (" << medianGflops << " GFLOP/s)"
                       << std::endl << std::endl;
     } else {
@@ -64,25 +64,25 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
 void MatrixMultiplication::execute(Method method) {
     switch (method) {
         case Method::IJK:
-            runMethod(Target::multiplyIJK, method);
+            runMethod(Target::Basic::multiplyIJK, method);
             break;
         case Method::IKJ:
-            runMethod(Target::multiplyIKJ, method);
+            runMethod(Target::Basic::multiplyIKJ, method);
             break;
         case Method::JIK:
-            runMethod(Target::multiplyJIK, method);
+            runMethod(Target::Basic::multiplyJIK, method);
             break;
         case Method::JKI:
-            runMethod(Target::multiplyJKI, method);
+            runMethod(Target::Basic::multiplyJKI, method);
             break;
         case Method::IJK_COLLAPSED:
-            runMethod(Target::multiplyIJKCollapsed, method);
+            runMethod(Target::Basic::multiplyIJKCollapsed, method);
             break;
         case Method::JIK_COLLAPSED:
-            runMethod(Target::multiplyJIKCollapsed, method);
+            runMethod(Target::Basic::multiplyJIKCollapsed, method);
             break;
         case Method::TILED_SHMEM:
-            runMethod(Target::multiplyTiled, method);
+            runMethod(Target::Tiled::multiplyTiled, method);
             break;
         case Method::TILED_SHMEM_MEM_DIRECTIVES:
 #if NO_MEM_DIRECTIVES
@@ -92,7 +92,7 @@ void MatrixMultiplication::execute(Method method) {
             }
             runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
 #else
-            runMethod(Target::multiplyTiledAllocator, method);
+            runMethod(Target::Tiled::multiplyTiledAllocator, method);
 #endif
             break;
         case Method::IJK_COLLAPSED_LOOP:
@@ -103,7 +103,7 @@ void MatrixMultiplication::execute(Method method) {
             }
             runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
 #else
-            runMethod(Target::multiplyIJKCollapsedLoop, method);
+            runMethod(Target::Loop::multiplyIJKCollapsedLoop, method);
 #endif
             break;
         case Method::IJK_LOOP:
@@ -114,8 +114,20 @@ void MatrixMultiplication::execute(Method method) {
             }
             runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
 #else
-            runMethod(Target::multiplyIJKCompleteLoop, method);
+            runMethod(Target::Loop::multiplyIJKCompleteLoop, method);
 #endif
+            break;
+        case Method::TILED_K:
+            runMethod(Target::Tiled::multiplyTiledK, method);
+            break;
+        case IKJ_COLLAPSED:
+            runMethod(Target::Basic::multiplyIKJCollapsed, method);
+            break;
+        case JKI_COLLAPSED:
+            runMethod(Target::Basic::multiplyJKICollapsed, method);
+            break;
+        case TILED_SHMEM_NO_BANK_CONFLICT:
+            runMethod(Target::Tiled::multiplyTiledNoBankConflict, method);
             break;
     }
 }
@@ -165,7 +177,7 @@ void MatrixMultiplication::writeCSV() {
     inFileStream.close();
 
     for (const auto& runResult : runResults) {
-        auto methodName = methodNamesMappingReversed[runResult.method];
+        auto methodName = methodNamesMapping[runResult.method];
         fileStream << methodName << ",";
         fileStream << typeid(DATA_TYPE).name() << ",";
         fileStream << MATRIX_SIZE << ",";
@@ -180,8 +192,6 @@ void MatrixMultiplication::writeCSV() {
 
     fileStream.close();
 }
-
-
 
 void MatrixMultiplication::writeTXT() {
     std::ofstream fileStream;
@@ -200,7 +210,7 @@ void MatrixMultiplication::writeTXT() {
 
     // find the width of the first column
     for (const auto &runResult: runResults) {
-        columnWidths[0] = std::max(columnWidths[0], methodNamesMappingReversed[runResult.method].length());
+        columnWidths[0] = std::max(columnWidths[0], methodNamesMapping[runResult.method].length());
         columnWidths[1] = std::max(columnWidths[1], runResult.compareResult.length());
     }
 
@@ -212,7 +222,7 @@ void MatrixMultiplication::writeTXT() {
 
     // write the actual table structure
     for (const auto &runResult: runResults) {
-        auto methodName = methodNamesMappingReversed[runResult.method];
+        auto methodName = methodNamesMapping[runResult.method];
         fileStream << Helper::IO::padLeft(methodName, columnWidths[0]) << " ";
         fileStream << Helper::IO::padLeft(runResult.compareResult, columnWidths[1]) << " ";
         fileStream << Helper::IO::padLeft(std::to_string(runResult.minExecutionTimeMs), columnWidths[2]) << " ";

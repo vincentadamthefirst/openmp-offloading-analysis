@@ -22,9 +22,12 @@
 #define MATRIX_SIZE 8192
 #endif
 
-#if MATRIX_SIZE>8192
-#warning Large matrices require a lot of RAM. There needs to be at least enough RAM to fit 3 matrices.
-#endif
+//#if MATRIX_SIZE>8192
+//#ifndef __warn_matrix_size
+//#warning Large matrices require a lot of RAM. There needs to be at least enough RAM to fit 3 matrices.
+//#define __warn_matrix_size
+//#endif
+//#endif
 
 /*
  * The tile size for tiled matrix multiplication. This is a compile-time definition due to shared memory allocation.
@@ -34,8 +37,18 @@
 #define TILE_SIZE 16
 #endif
 
-#if TILE_SIZE>32
-#warning A TILE_SIZE > 32 will often not fit into the shared memory. Be aware, that a total size of TILE_SIZE x TILE_SIZE x sizeof(DATA_TYPE) x 2 is needed.
+//#if TILE_SIZE>32
+//#ifndef __warn_tile
+//#warning A TILE_SIZE > 32 will often not fit into the shared memory. Be aware, that a total size of TILE_SIZE x TILE_SIZE x sizeof(DATA_TYPE) x 2 is needed.
+//#define __warn_tile
+//#endif
+//#endif
+
+/*
+ * The block size to use for the K-blocked method.
+ */
+#ifndef K_BLOCK_SIZE
+#define K_BLOCK_SIZE 1024
 #endif
 
 /*
@@ -65,5 +78,3 @@
 #define DT DATA_TYPE
 #define SIZE MATRIX_SIZE
 #define TAS TILE_AXIS_SIZE
-
-// helper method

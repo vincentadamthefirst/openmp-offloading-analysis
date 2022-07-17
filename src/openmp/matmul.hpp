@@ -7,8 +7,11 @@
 
 #include "target.hpp"
 #include "host.hpp"
-#include "../../include/Helper.hpp"
+#include "../../include/helper.hpp"
 
+/**
+ * Struct to track the results of a matrix multiplication method.
+ */
 struct MatrixMultiplyRunResult {
     Method method;
     std::string compareResult;
@@ -29,16 +32,26 @@ public:
             free(checkMatrix);
     }
 
+    /**
+     * Set the amount of repetitions to be executed per multiplication method. Values < 1 will be defaulted to 1.
+     * @param r amount of repetitions
+     */
     MatrixMultiplication& enableRepetitions(int r) {
         repetitions = r < 1 ? 1 : r;
         return *this;
     }
 
+    /**
+     * Set if there should be a checking matrix to compare GPU and CPU results.
+     * @param check if a check matrix should be calculated
+     */
     MatrixMultiplication& enableCheck(bool check) {
         prepareMatrices();
 
         if (check) {
-            std::cout << "Preparing matrix for later checking (this make take some time)...";
+            std::cout << "Preparing matrix for later checking"
+                      << (MATRIX_SIZE > 4096 ? " (this make take some time)" : "") << "... ";
+            std::cout.flush();
             checkMatrix = Helper::Matrix::initializeZero<DT>(MATRIX_SIZE);
             Host::multiplyIKJParallel(A, B, checkMatrix, MATRIX_SIZE);
             std::cout << "Done." << std::endl;
@@ -48,44 +61,61 @@ public:
         return *this;
     }
 
-#define STRING(s) #s
-
     /// Debug method. Prints the settings for this matrix multiplication.
     void printInfo() {
-        std::string dataTypeString = "";
-        if (typeid(DATA_TYPE) == typeid(float)) dataTypeString = "FLOAT";
-        if (typeid(DATA_TYPE) == typeid(double)) dataTypeString = "DOUBLE";
-        if (typeid(DATA_TYPE) == typeid(int)) dataTypeString = "INT";
-
         std::cout << "file path:      " << filename << std::endl;
         std::cout << "verbose:        " << (verbose ? "ON" : "OFF") << std::endl;
         std::cout << "matrix size:    " << MATRIX_SIZE << std::endl;
         std::cout << "repetitions:    " << repetitions << std::endl;
         std::cout << "lower value:    " << VALUE_RANGE_LOWER << std::endl;
         std::cout << "upper value:    " << VALUE_RANGE_UPPER << std::endl;
-        std::cout << "data type:      " << dataTypeString << std::endl;
+        std::cout << "data type:      " << typeid(DATA_TYPE).name() << std::endl;
         std::cout << "tile size:      " << TILE_SIZE << std::endl;
         std::cout << "tile axis size: " << TILE_AXIS_SIZE << std::endl;
         std::cout << "check matrix:   " << (checkMatrix ? "PRESENT" : "MISSING") << std::endl;
+        std::cout << std::endl;
     }
 
+    /**
+     * Executes the benchmark for a given method.
+     * @param method the method to execute
+     */
     void execute(Method method);
 
+    /**
+     * Writes the results collected until now to a file. <br>
+     * The type of file and filename are specified in the constructor.
+     */
     void writeFile();
 
 
 private:
 
+    /**
+     * Performs the benchmark for a method. Performs the repetitions and checks (if set).
+     * @param functionPtr the function to call for that method
+     * @param method the type of method that is executed
+     */
     void runMethod(double (*functionPtr)(const DT*, const DT*, DT*), Method method);
 
+    /**
+     * Prepares the matrices A and B to be multiplied.
+     */
     void prepareMatrices() {
-        std::cout << "Preparing matrices A and B..." << std::endl;
+        std::cout << "Preparing matrices A and B... ";
         A = Helper::Matrix::initializeRandom<DT>(MATRIX_SIZE, VALUE_RANGE_LOWER, VALUE_RANGE_UPPER);
         B = Helper::Matrix::initializeRandom<DT>(MATRIX_SIZE, VALUE_RANGE_LOWER, VALUE_RANGE_UPPER);
+        std::cout << "Done." << std::endl;
     }
 
+    /**
+     * Writes the results as a CSV file.
+     */
     void writeCSV();
 
+    /**
+     * Writes the results as a TXT file.
+     */
     void writeTXT();
 
 private:

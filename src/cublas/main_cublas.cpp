@@ -4,7 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 
-#include "../../include/Helper.hpp"
+#include "../../include/helper.hpp"
 #include "cuda_helper.cuh"
 #include "../../libs/cmdparser.hpp"
 
