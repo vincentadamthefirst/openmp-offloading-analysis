@@ -16,6 +16,14 @@
 #endif
 
 /*
+ * NVC++ cannot compile code with a '#pragma omp parallel for collapse(2)' inside an existing
+ * '#pragma omp target teams distribute for ...'. Methods using this can be deactivated with this setting.
+ */
+#ifndef NO_NESTED_PARALLEL_FOR
+#define NO_NESTED_PARALLEL_FOR false
+#endif
+
+/*
  * The matrix size to be used. This is a compile-time definition due to tiling and shared memory allocation.
  */
 #ifndef MATRIX_SIZE

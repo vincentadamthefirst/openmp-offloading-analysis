@@ -4,6 +4,25 @@
 
 RUN=false
 
+# file to compile
+SRC="src/openmp/main_openmp.cpp"
+
+# compile settings for all compilers
+ALL_FLAGS="-std=c++11 -O3"
+
+# compile settings for the different compilers
+CLANG_FLAGS="-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda -fopenmp-version=51 --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/22.3/cuda/"
+NVC_FLAGS="-mp=gpu -target=gpu -gpu=cc80"
+ROCM_FLAGS="-target x86_64-pc-linux-gnu -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa -march=gfx906"
+XLC_FLAGS="-qsmp -qoffload -qtgtarch=sm_70"
+
+# compile settings for the program itself
+CLANG_SETTINGS="-DNO_LOOP_DIRECTIVES"
+NVC_SETTINGS="-DNO_MEM_DIRECTIVES -DNO_NESTED_PARALLEL_FOR"
+ROCM_SETTINGS="-DNO_LOOP_DIRECTIVES -DNO_MEM_DIRECTIVES"
+XLC_SETTINGS="-DNO_LOOP_DIRECTIVES -DNO_MEM_DIRECTIVES"
+
+
 for i in "$@"; do
   case $i in
     -m=*|--matrix_sizes=*)
@@ -24,10 +43,6 @@ for i in "$@"; do
       ;;
     -c=*|--compilers=*)
       COMPILERS="${i#*=}"
-      shift # past argument=value
-      ;;
-    --methods=*)
-      METHODS="${i#*=}"
       shift # past argument=value
       ;;
     --run)
@@ -58,6 +73,9 @@ COMPILER_ARRAY=(${COMPILERS//,/ })
 
 # Compiling the code
 mkdir -p tmp
+echo "Generating runscript.sh"
+FILE="tmp/runscript.sh"
+
 for compiler in "${COMPILER_ARRAY[@]}"
 do
   echo "Compiler: ${compiler}"
@@ -67,58 +85,51 @@ do
     for matrix_size in "${MATRIX_SIZES_ARRAY[@]}"
     do
       echo "    Matrix Size: ${matrix_size}"
+      CURRENT_SETTINGS="-DMATRIX_SIZE=${matrix_size} -DDATA_TYPE=${data_type}"
+      
+      if [ "${compiler}" == "clang" ]; then
+        clang++ ${ALL_FLAGS} ${CLANG_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling ${CURRENT_SETTINGS} ${CLANG_SETTINGS}
+      elif [ "${compiler}" == "nvc" ]; then
+        nvc++ ${ALL_FLAGS} ${NVC_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling ${CURRENT_SETTINGS} ${NVC_SETTINGS}
+      elif [ "${compiler}" == "rocm" ]; then
+        /opt/rocm-5.2.0/llvm/bin/clang++ ${ALL_FLAGS} ${ROCM_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling ${CURRENT_SETTINGS} ${ROCM_SETTINGS}
+      elif [ "${compiler}" == "xlc" ]; then
+        xlc++ ${ALL_FLAGS} ${XLC_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling ${CURRENT_SETTINGS} ${XLC_SETTINGS}
+      else
+        echo "Unknown compiler: ${compiler}."
+      fi
+      chmod +x tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling
+      echo "./tmp/${compiler}_omp_${data_type}_${matrix_size}_no_tiling -v -r ${REPETITIONS} -m basic collapsed loop -ft csv -f results/${compiler}.csv" >> $FILE
+      
       for tile_size in "${TILE_SIZES_ARRAY[@]}"
       do
         echo "      Tile Size: ${tile_size}"
+        CURRENT_SETTINGS="-DMATRIX_SIZE=${matrix_size} -DDATA_TYPE=${data_type} -DTILE_SIZE=${tile_size}"
+
         if [ "${compiler}" == "clang" ]; then
-          clang++ -std=c++11 -O3 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda -fopenmp-version=51 --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/22.3/cuda/ src/openmp/main_openmp.cpp -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} -DTILE_SIZE=${tile_size} -DMATRIX_SIZE=${matrix_size} -DDATA_TYPE=${data_type} -DNO_LOOP_DIRECTIVES
-          chmod +x tmp/clang_omp_${data_type}_${matrix_size}_${tile_size}
+          clang++ ${ALL_FLAGS} ${CLANG_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} ${CURRENT_SETTINGS}  ${CLANG_SETTINGS}
         elif [ "${compiler}" == "nvc" ]; then
-          nvc++ -std=c++11 -O3 -mp=gpu -target=gpu src/openmp/main_openmp.cpp -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} -DTILE_SIZE=${tile_size} -DMATRIX_SIZE=${matrix_size} -DDATA_TYPE=${data_type} -DNO_MEM_DIRECTIVES
-          chmod +x tmp/nvc_omp_${data_type}_${matrix_size}_${tile_size}
+          nvc++ ${ALL_FLAGS} ${NVC_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} ${CURRENT_SETTINGS} ${NVC_SETTINGS}
+        elif [ "${compiler}" == "rocm" ]; then
+          /opt/rocm-5.2.0/llvm/bin/clang++ ${ALL_FLAGS} ${ROCM_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} ${CURRENT_SETTINGS} ${ROCM_SETTINGS}
+        elif [ "${compiler}" == "xlc" ]; then
+          xlc++ ${ALL_FLAGS} ${XLC_FLAGS} ${SRC} -o tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} ${CURRENT_SETTINGS} ${XLC_SETTINGS}
+        else
+          echo "Unknown compiler: ${compiler}."
         fi
+        chmod +x tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size}
+        echo "./tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} -v -r ${REPETITIONS} -m tiled -ft csv -f results/${compiler}.csv" >> $FILE
       done
     done
   done
 done
+
+chmod +x ${FILE}
 
 if ${RUN} ; then
   # Running the generated executables
   echo "Running the generated scripts..."
   echo ""
   mkdir -p results
-  for compiler in "${COMPILER_ARRAY[@]}"
-  do
-    for data_type in "${DATA_TYPES_ARRAY[@]}"
-    do
-      for matrix_size in "${MATRIX_SIZES_ARRAY[@]}"
-      do
-        for tile_size in "${TILE_SIZES_ARRAY[@]}"
-        do
-          ./tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} -v -r ${REPETITIONS} -m ${METHODS} -ft csv -f results/${compiler}.csv
-        done
-      done
-    done
-  done
-else
-  # generate run script
-  echo "Generating runscript.sh"
-  FILE="tmp/runscript.sh"
-
-  echo "#!/bin/bash" > $FILE
-  for compiler in "${COMPILER_ARRAY[@]}"
-  do
-    for data_type in "${DATA_TYPES_ARRAY[@]}"
-    do
-      for matrix_size in "${MATRIX_SIZES_ARRAY[@]}"
-      do
-        for tile_size in "${TILE_SIZES_ARRAY[@]}"
-        do
-          echo "./tmp/${compiler}_omp_${data_type}_${matrix_size}_${tile_size} -v -r ${REPETITIONS} -m ${METHODS} -ft csv -f results/${compiler}.csv" >> $FILE
-        done
-      done
-    done
-  done
-
-  chmod +x ${FILE}
+  ./tmp/runscript.sh
 fi

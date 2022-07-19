@@ -120,6 +120,7 @@ namespace Target {
             return (end - start) * 1000.0;
         }
 
+#if !NO_NESTED_PARALLEL_FOR
         double multiplyIKJCollapsed(const DT *A, const DT *B, DT *C) {
             double start, end;
 #pragma omp target data map(A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
@@ -138,6 +139,7 @@ namespace Target {
             }
             return (end - start) * 1000.0;
         }
+#endif
 
         double multiplyJIK(const DT *A, const DT *B, DT *C) {
             double start, end;
@@ -193,6 +195,7 @@ namespace Target {
             return (end - start) * 1000.0;
         }
 
+#if !NO_NESTED_PARALLEL_FOR
         double multiplyJKICollapsed(const DT *A, const DT *B, DT *C) {
             double start, end;
 #pragma omp target data map(A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
@@ -211,6 +214,7 @@ namespace Target {
             }
             return (end - start) * 1000.0;
         }
+#endif
     }
 
 #if !NO_LOOP_DIRECTIVES
@@ -240,7 +244,7 @@ namespace Target {
                 start = omp_get_wtime();
 #pragma omp target teams loop
                 for (int i = 0; i < SIZE; i++) {
-#pragma omp loop
+#pragma omp loop //bind(parallel)
                     for (int j = 0; j < SIZE; j++) {
 #pragma omp loop bind(thread)
                         for (int k = 0; k < SIZE; k++) {
@@ -443,7 +447,6 @@ namespace Target {
     }
 
 #if !NO_MEM_DIRECTIVES
-
         double multiplyTiledAllocator(const DT *A, const DT *B, DT *C) {
             double start, end;
 #pragma omp target data map(A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])

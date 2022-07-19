@@ -98,7 +98,8 @@ void MatrixMultiplication::execute(Method method) {
         case Method::IJK_COLLAPSED_LOOP:
 #if NO_LOOP_DIRECTIVES
             if (verbose) {
-                std::cout << "Skipping loop directive matrix multiplication due to compiler flag." << std::endl;
+                std::cout << "Skipping loop directive matrix multiplication (ijk_collapsed_loop) due to compiler flag."
+                          << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
             runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
@@ -109,7 +110,8 @@ void MatrixMultiplication::execute(Method method) {
         case Method::IJK_LOOP:
 #if NO_LOOP_DIRECTIVES
             if (verbose) {
-                std::cout << "Skipping loop directive matrix multiplication due to compiler flag." << std::endl;
+                std::cout << "Skipping loop directive matrix multiplication (ikj_loop) due to compiler flag."
+                          << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
             runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
@@ -121,10 +123,30 @@ void MatrixMultiplication::execute(Method method) {
             runMethod(Target::Tiled::multiplyTiledK, method);
             break;
         case IKJ_COLLAPSED:
+#if NO_NESTED_PARALLEL_FOR
+            if (verbose) {
+                std::cout
+                        << "Skipping nested parallel for directive matrix multiplication (ikj_collapsed) due to compiler flag."
+                        << std::endl;
+                std::cout << "To enable set NO_NESTED_PARALLEL_FOR to false." << std::endl << std::endl;
+            }
+            runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
+#else
             runMethod(Target::Basic::multiplyIKJCollapsed, method);
+#endif
             break;
         case JKI_COLLAPSED:
+#if NO_NESTED_PARALLEL_FOR
+            if (verbose) {
+                std::cout
+                        << "Skipping nested parallel for directive matrix multiplication (jki_collapsed) due to compiler flag."
+                        << std::endl;
+                std::cout << "To enable set NO_NESTED_PARALLEL_FOR to false." << std::endl << std::endl;
+            }
+            runResults.push_back({method, "NOT COMPILED", -1, -1, -1, -1});
+#else
             runMethod(Target::Basic::multiplyJKICollapsed, method);
+#endif
             break;
         case TILED_SHMEM_NO_BANK_CONFLICT:
             runMethod(Target::Tiled::multiplyTiledNoBankConflict, method);
