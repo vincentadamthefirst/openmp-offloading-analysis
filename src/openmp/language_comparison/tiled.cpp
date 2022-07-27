@@ -21,7 +21,7 @@
 #define TILE_SIZE 32
 #endif
 
-#if TILE_SIZE>32
+#if TILE_SIZE>31
 #warning "Tile sizes > 32 will most likely lead to incorrect matrices!"
 #endif
 

@@ -6,8 +6,9 @@
 #include <ctime>
 
 #include "target.hpp"
-#include "host.hpp"
-#include "../../include/helper.hpp"
+#include "../host.hpp"
+#include "../../../include/helper.hpp"
+#include "../../../include/output.hpp"
 
 /**
  * Struct to track the results of a matrix multiplication method.
@@ -19,6 +20,8 @@ struct MatrixMultiplyRunResult {
     double minExecutionTimeMs;
     double meanExecutionTimeMs;
     double medianExecutionTimeMs;
+    double meanGflops;
+    double medianGflops;
 };
 
 class MatrixMultiplication {
@@ -38,6 +41,11 @@ public:
      */
     MatrixMultiplication& enableRepetitions(int r) {
         repetitions = r < 1 ? 1 : r;
+        return *this;
+    }
+
+    MatrixMultiplication& enableWarmup(int w) {
+        warmup = w < 0 ? 0 : w;
         return *this;
     }
 
@@ -108,16 +116,6 @@ private:
         std::cout << "Done." << std::endl;
     }
 
-    /**
-     * Writes the results as a CSV file.
-     */
-    void writeCSV();
-
-    /**
-     * Writes the results as a TXT file.
-     */
-    void writeTXT();
-
 private:
     /// private member values
     std::string filename;
@@ -125,8 +123,9 @@ private:
     const bool csv = false;         // write csv compatible output
 
     uint32_t repetitions = 1;
+    uint32_t warmup = 0;
 
-    std::vector<MatrixMultiplyRunResult> runResults;
+    std::vector<Output::MatrixMultiplyRunResult> runResults;
     std::string timeString;         // for TXT output generation
 
     DT* A = nullptr;

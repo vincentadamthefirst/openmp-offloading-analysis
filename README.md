@@ -3,14 +3,26 @@
 Set of different matrix multiplication methods with different levels of optimization and loop reordering in OpenMP. 
 Used to evaluate different compiler implementations of target offloading.
 
-Currently still W.I.P.
+## Directory Elements
+
+- **include**: header files used throughout the code
+- **libs**: libraries used throughout the code
+- **scripts**: set of scripts to help with compiling and creating benchmarking runs on Taurus
+- **singularity**: singularity definition files
+- **src**: C/C++ source code
+  - **cublas**: cuBLAS implementation (matrix multiplication)
+  - **cuda**: CUDA blocked matrix multiplication (shared memory usage)
+  - **openmp**: OpenMP implementations
+    - **benchmark**: actual benchmark (IJK & blocked)
+    - **language_comparison**: blocked matrix multiplication to compare C and C++ code
+    - **loop_ordering**: code to test different loop orders 
+  - **rocblas**: rocBLAS implementation (matrix multiplication)
 
 ## Compilers & Remarks
 
 - OpenMP:
   - during compilation some attributes of the matrices have to be specified (due to missing dynamic memory allocation in 
-  some compilers)
-  - to help with benchmarking multiple matrix / tile sizes a helper script was created (see [here](#helper-script))
+  some compilers) 
   - a complete list of preprocessor variables is listed below
 
 | variable           | explanation                                                                | default | example                |
@@ -24,12 +36,12 @@ Currently still W.I.P.
 - CUBLAS
   - the preprocessor fields have been moved into command line arguments (see [Execution](#execution)/CUBLAS)
 
-### NVC++ (NVHPC 22.3)
+### NVC++ (NVHPC 22.5)
 
 #### Compilation
 
 ```shell
-nvc++ -std=c++11 -O3 -mp=gpu -target=gpu src/openmp/main_openmp.cpp -o matmul_nvcpp -DNO_MEM_DIRECTIVES
+nvc++ -std=c++11 -O3 -mp=gpu -target=gpu src/openmp/benchmark/benchmark.cpp -o matmul_nvcpp -DNO_MEM_DIRECTIVES
 ```
 
 #### Remarks
@@ -44,7 +56,7 @@ nvc++ -std=c++11 -O3 -mp=gpu -target=gpu src/openmp/main_openmp.cpp -o matmul_nv
 #### Compilation
 
 ```shell
-clang++ -std=c++11 -O3 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda -fopenmp-version=51 src/openmp/main_openmp.cpp -o matmul_clang -DNO_LOOP_DIRECTIVES -DTILE_SIZE=32
+clang++ -std=c++11 -O3 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda -fopenmp-version=51 src/openmp/benchmark/benchmark.cpp -o matmul_clang -DNO_LOOP_DIRECTIVES -DTILE_SIZE=32
 ```
 
 #### Remarks
@@ -78,8 +90,16 @@ rocm/llvm/bin/clang++ -std=c++11 -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xo
 #### Compilation
 
 ```shell
-nvcc -std=c++11 -arch=sm_80 src/cublas/main_cublas.cpp -lcublas -lcurand -o matmul_cublas
+nvcc -std=c++11 -O3 -arch=sm_80 src/cublas/main_cublas.cpp -lcublas -lcurand -o matmul_cublas
 ```
+
+### ROCBLAS
+
+```shell
+nvcc -std=c++11 -O3 src/rocblas/main_rocblas.cpp -lrocblas -lhiprand -o matmul_rocblas
+```
+
+#### Compilation
 
 ## Execution
 
@@ -87,7 +107,7 @@ nvcc -std=c++11 -arch=sm_80 src/cublas/main_cublas.cpp -lcublas -lcurand -o matm
 
 | argument        | alias | type        | description                                                                                                                                                                                 | default      | required |
 |-----------------|-------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|----------|
-| `file`          | `f`   | string      | file to write the results to                                                                                                                                                                | generate new | no       |
+| `output`        | `o`   | string      | file to write the results to                                                                                                                                                                | generate new | no       |
 | `file_type`     | `ft`  | string      | file type that should be written (`txt` or `csv`)                                                                                                                                           | `txt`        | no       |
 | `repetitions`   | `r`   | int         | repetitions within a matrix size                                                                                                                                                            | 11           | no       |
 | `verbose`       | `v`   | flag        | when enabled, print more intermediate results to console                                                                                                                                    | false        | no       |
@@ -101,11 +121,11 @@ Example:
 ./matmul -ft csv -v -r 20
 ```
 
-### CUBLAS
+### CUBLAS / ROCBLAS
 
 | argument            | alias | type   | description                                              | default | required |
 |---------------------|-------|--------|----------------------------------------------------------|---------|----------|
-| `file`              | `f`   | string | file to write the results to                             | /       | no       |
+| `output`            | `o`   | string | file to write the results to                             | /       | no       |
 | `matrix_size_start` | `s`   | int    | initial matrix size, will be doubled each iteration      | 4096    | no       |
 | `matrix_size_end`   | `e`   | int    | maximum matrix size, size will be included               | 16384   | no       |
 | `repetitions`       | `r`   | int    | repetitions within a matrix size                         | 11      | no       |
@@ -135,19 +155,7 @@ Both files contain a tiled matrix multiplication with shared memory usage. They 
 
 ## TODOs
 
-- [ ] add singularity container definition file
 - [ ] add results
-
-## Helper Script
-
-A helper script is provided with `helper_script.sh`. It automatically compiles and executes the source code.
-It currently works for `clang` and `nvidia` compilers.
-
-```shell
-# Compile for matrices of size 8192 and 16384 (-m) and tile sizes 16 and 32 (-t) with float and double (-d) types using clang (-c)
-# execute the generated scripts (--run) and test the provided methods (--methods)
-./helper_script.h -m=8192,16384 -t=16,32 -d=float,double -c=clang --methods="ijk_collapsed jik_collapsed tiled_shmem tiled_shmem_mem_directives" --run
-```
 
 ## Third-Party code
 

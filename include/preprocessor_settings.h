@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  * Some compilers do not support OpenMP directives for memory allocation (#pragma omp allocate(...)).
  * To ensure correct compilation in these cases, this flag can be set to 'true'. The benchmark will then be compiled
@@ -16,26 +18,11 @@
 #endif
 
 /*
- * NVC++ cannot compile code with a '#pragma omp parallel for collapse(2)' inside an existing
- * '#pragma omp target teams distribute for ...'. Methods using this can be deactivated with this setting.
- */
-#ifndef NO_NESTED_PARALLEL_FOR
-#define NO_NESTED_PARALLEL_FOR false
-#endif
-
-/*
  * The matrix size to be used. This is a compile-time definition due to tiling and shared memory allocation.
  */
 #ifndef MATRIX_SIZE
 #define MATRIX_SIZE 8192
 #endif
-
-//#if MATRIX_SIZE>8192
-//#ifndef __warn_matrix_size
-//#warning Large matrices require a lot of RAM. There needs to be at least enough RAM to fit 3 matrices.
-//#define __warn_matrix_size
-//#endif
-//#endif
 
 /*
  * The tile size for tiled matrix multiplication. This is a compile-time definition due to shared memory allocation.
@@ -45,15 +32,8 @@
 #define TILE_SIZE 16
 #endif
 
-//#if TILE_SIZE>32
-//#ifndef __warn_tile
-//#warning A TILE_SIZE > 32 will often not fit into the shared memory. Be aware, that a total size of TILE_SIZE x TILE_SIZE x sizeof(DATA_TYPE) x 2 is needed.
-//#define __warn_tile
-//#endif
-//#endif
-
 /*
- * The block size to use for the K-blocked method.
+ * The block size to use for the K-shmem method.
  */
 #ifndef K_BLOCK_SIZE
 #define K_BLOCK_SIZE 1024
@@ -80,6 +60,17 @@
 #endif
 #ifndef VALUE_RANGE_UPPER
 #define VALUE_RANGE_UPPER 1
+#endif
+
+/*
+ * Should the compiler defaults for num_teams and num_threads be overwritten
+ */
+#ifndef OVERWRITE_DEFAULT_NUMS
+#define OVERWRITE_DEFAULT_NUMS false
+#endif
+
+#if OVERWRITE_DEFAULT_NUMS
+#warning "Overwrite on!"
 #endif
 
 // shortcuts

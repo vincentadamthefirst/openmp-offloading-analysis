@@ -5,103 +5,81 @@
 #include <cstdlib>
 
 #include "../../include/helper.hpp"
-#include "cuda_helper.cuh"
 #include "../../libs/cmdparser.hpp"
 
-#include "cublas_v2.h"
-#include "curand.h"
+#include "error_macros.h"
+#include <rocblas.h>
+#include <hip/hip_runtime.h>
+#include <hiprand/hiprand.h>
 
 template<typename T>
 void initMatrix(T *A, uint32_t size, unsigned long long seed);
 
 template<>
 void initMatrix<float>(float *A, uint32_t size, unsigned long long seed) {
-    curandGenerator_t prng;
-    curandCreateGenerator(&prng, CURAND_RNG_PSEUDO_DEFAULT);
-    curandSetPseudoRandomGeneratorSeed(prng, seed);
-    curandGenerateUniform(prng, A, size * size);
+    hiprandGenerator_t prng;
+    hiprandCreateGenerator(&prng, HIPRAND_RNG_PSEUDO_DEFAULT);
+    hiprandSetPseudoRandomGeneratorSeed(prng, seed);
+    hiprandGenerateUniform(prng, A, size * size);
 }
 
 template<>
 void initMatrix<double>(double *A, uint32_t size, unsigned long long seed) {
-    curandGenerator_t prng;
-    curandCreateGenerator(&prng, CURAND_RNG_PSEUDO_DEFAULT);
-    curandSetPseudoRandomGeneratorSeed(prng, seed);
-    curandGenerateUniformDouble(prng, A, size * size);
+    hiprandGenerator_t prng;
+    hiprandCreateGenerator(&prng, HIPRAND_RNG_PSEUDO_DEFAULT);
+    hiprandSetPseudoRandomGeneratorSeed(prng, seed);
+    hiprandGenerateUniformDouble(prng, A, size * size);
 }
 
 template<typename T>
-double MatMulCUBLAS(cublasHandle_t& handle, const T *A, const T *B, T *C, const int size);
+double MatMulROCBLAS(rocblas_handle& handle, const T *A, const T *B, T *C, const int size);
 
 template<>
-double MatMulCUBLAS<float>(cublasHandle_t& handle, const float *A, const float *B, float *C, const int size) {
+double MatMulROCBLAS<float>(rocblas_handle& handle, const float *A, const float *B, float *C, const int size) {
     float alpha = 1;
     const float beta = 0;
 
-    cudaDeviceSynchronize();
-    //cudaThreadSynchronize();
+    hipDeviceSynchronize();
     auto t1 = std::chrono::high_resolution_clock::now();
-    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha, A, size, B, size, &beta, C, size);
-    //cudaThreadSynchronize();
-    cudaDeviceSynchronize();
+    CHECK_ROCBLAS_STATUS(
+            rocblas_sgemm(handle, rocblas_operation_none, rocblas_operation_none, size, size, size, &alpha, A, size, B,
+                          size, &beta, C, size));
+    hipDeviceSynchronize();
     auto t2 = std::chrono::high_resolution_clock::now();
 
     return std::chrono::duration<double, std::milli>(t2 - t1).count();
 }
 
 template<>
-double MatMulCUBLAS<double>(cublasHandle_t& handle, const double *A, const double *B, double *C, const int size) {
-    //double alpha = 1;
+double MatMulROCBLAS<double>(rocblas_handle& handle, const double *A, const double *B, double *C, const int size) {
     double alpha = 1;
     const double beta = 0;
 
-    cudaDeviceSynchronize();
-    //cudaThreadSynchronize();
+    hipDeviceSynchronize();
     auto t1 = std::chrono::high_resolution_clock::now();
-    cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha, A, size, B, size, &beta, C, size);
-//    cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha,
-//                 A, CUDA_R_64F, size,
-//                 B, CUDA_R_64F, size, &beta,
-//                 C, CUDA_R_64F, size,
-//                 CUBLAS_COMPUTE_64F_PEDANTIC, CUBLAS_GEMM_ALGO0);
-    //cudaThreadSynchronize();
-    cudaDeviceSynchronize();
+    CHECK_ROCBLAS_STATUS(
+            rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, size, size, size, &alpha, A, size, B,
+                          size, &beta, C, size));
+    hipDeviceSynchronize();
     auto t2 = std::chrono::high_resolution_clock::now();
 
     return std::chrono::duration<double, std::milli>(t2 - t1).count();
 }
 
-template<typename T>
-cublasHandle_t prepareHandle(bool tensor);
+rocblas_handle prepareHandle() {
+    std::cout << "Preparing ROCBLAS handle" << std::endl;
 
-template<>
-cublasHandle_t prepareHandle<float>(bool tensor) {
-    std::cout << "Preparing single precision CUBLAS handle with tensor math = " << (tensor ? "ON" : "OFF") << std::endl;
-
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH /*CUBLAS_TF32_TENSOR_OP_MATH*/ : CUBLAS_DEFAULT_MATH);
-
-    std::cout << "Done." << std::endl;
-    return handle;
-}
-
-template<>
-cublasHandle_t prepareHandle<double>(bool tensor) {
-    std::cout << "Preparing double precision CUBLAS handle with tensor math = " << (tensor ? "ON" : "OFF") << std::endl;
-
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH /*CUBLAS_PEDANTIC_MATH*/);
+    rocblas_handle handle;
+    CHECK_ROCBLAS_STATUS(rocblas_create_handle(&handle));
 
     std::cout << "Done." << std::endl;
     return handle;
 }
 
 template<typename T>
-void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint32_t warmup, uint32_t mStart, uint32_t mEnd, bool tensor,
+void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint32_t warmup, uint32_t mStart, uint32_t mEnd,
          unsigned long long seed) {
-    auto handle = prepareHandle<T>(tensor);
+    auto handle = prepareHandle();
 
     std::ofstream fileStream;
     fileStream.open(path, std::ios_base::app);
@@ -111,19 +89,19 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
         std::cout << "Matrices of size " << matrixSize << std::endl;
 
         T *d_A, *d_B;
-        CHECK_CUDA(cudaMalloc(&d_A, totalSize));
-        CHECK_CUDA(cudaMalloc(&d_B, totalSize));
+        CHECK_HIP_ERROR(hipMalloc(&d_A, totalSize));
+        CHECK_HIP_ERROR(hipMalloc(&d_B, totalSize));
         initMatrix(d_A, matrixSize, seed);
         initMatrix(d_B, matrixSize, seed);
 
         std::vector<double> runtimes; // runtimes in ms
         for (uint32_t repetition = 0; repetition < repetitions + warmup; ++repetition) {
             T *d_C;
-            CHECK_CUDA(cudaMalloc(&d_C, totalSize));
-            auto runtime = MatMulCUBLAS<T>(handle, d_A, d_B, d_C, matrixSize);
+            CHECK_HIP_ERROR(hipMalloc(&d_C, totalSize));
+            auto runtime = MatMulROCBLAS<T>(handle, d_A, d_B, d_C, matrixSize);
             if (repetition > warmup)
                 runtimes.push_back(runtime);
-            CHECK_CUDA(cudaFree(d_C));
+            CHECK_HIP_ERROR(hipFree(d_C));
             if (verbose) {
                 if (repetition >= warmup) {
                     std::cout << "  Repetition #" << (repetition - warmup) << ": " << runtime << "ms ("
@@ -148,17 +126,16 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
         if (isCsv) {
             // TODO
         } else {
-            fileStream << "[CUBLAS SIZE=" << matrixSize << ", REP=" << repetitions << ", TENSOR="
-                       << (tensor ? "1" : "0") << "] "
+            fileStream << "[ROCBLAS SIZE=" << matrixSize << ", REP=" << repetitions << "] "
                        << info << std::endl;
         }
 
-        CHECK_CUDA(cudaFree(d_A));
-        CHECK_CUDA(cudaFree(d_B));
+        CHECK_HIP_ERROR(hipFree(d_A));
+        CHECK_HIP_ERROR(hipFree(d_B));
     }
 
     fileStream.close();
-    cublasDestroy(handle);
+    rocblas_destroy_handle(handle);
 }
 
 void configureParser(cli::Parser& parser) {
@@ -167,7 +144,6 @@ void configureParser(cli::Parser& parser) {
     parser.set_optional<int>("e", "matrix_size_end", 16384, "End size of matrices (will be included).");
     parser.set_optional<int>("r", "repetitions", 11, "Set the amount of repetitions for each matrix.");
     parser.set_optional<int>("w", "warmup", 11, "Set the amount of repetitions that are executed for warmup.");
-    parser.set_optional<bool>("t", "tensor", false, "Explicitly activate tensor functionality.");
     parser.set_optional<std::string>("ft", "file_type", "txt", "Set the formatting of the output. Must be 'txt' or "
                                                                "'csv'.");
     parser.set_optional<std::string>("f", "file", "GENERATE_NEW",
@@ -191,7 +167,6 @@ int main(int argc, char* argv[]) {
     repetitions = repetitions < 1 ? 1 : repetitions;
     auto matrixSizeStart = parser.get<int>("s");
     auto matrixSizeEnd = parser.get<int>("e");
-    auto tensor = parser.get<bool>("t");
 
     time_t rawtime;
     struct tm * timeinfo;
@@ -207,7 +182,7 @@ int main(int argc, char* argv[]) {
     if (filename == "GENERATE_NEW" || !fileCheck.good()) {
         // no file found, create a file
         std::string newName =
-                filename == "GENERATE_NEW" ? "cublas_result_" + std::to_string(matrixSizeStart) + "-" +
+                filename == "GENERATE_NEW" ? "rocblas_result_" + std::to_string(matrixSizeStart) + "-" +
                                              std::to_string(matrixSizeEnd) + "_" + timeString + (csv ? ".csv" : ".txt")
                                            : filename;
         std::cout << "No output file found, generate a new one (" << newName << ")" << std::endl;
@@ -219,10 +194,10 @@ int main(int argc, char* argv[]) {
     }
 
     if (precision == "f32") {
-        run<float>(filename, csv, verbose, repetitions, warmup, matrixSizeStart, matrixSizeEnd, tensor,
+        run<float>(filename, csv, verbose, repetitions, warmup, matrixSizeStart, matrixSizeEnd,
                    (unsigned long long) clock());
     } else {
-        run<double>(filename, csv, verbose, repetitions, warmup, matrixSizeStart, matrixSizeEnd, tensor,
+        run<double>(filename, csv, verbose, repetitions, warmup, matrixSizeStart, matrixSizeEnd,
                     (unsigned long long) clock());
     }
 }

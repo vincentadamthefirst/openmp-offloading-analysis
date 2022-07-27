@@ -1,28 +1,16 @@
 #include <iostream>
-#include <fstream>
 #include <vector>
-#include <algorithm>
 #include <map>
 #include <set>
 
 #include "matmul.cpp"
-#include "../../libs/cmdparser.hpp"
 
 void configureParser(cli::Parser& parser) {
-    parser.set_optional<std::string>("f", "file", "GENERATE_NEW",
-                                     "File the output should be written to. If no file is given a "
-                                     "new file will be generated next to the executable.");
-    parser.set_optional<std::string>("ft", "file_type", "txt", "Set the formatting of the output. Must be 'txt' or "
-                                                               "'csv'.");
-    parser.set_optional<bool>("v", "verbose", false, "Enable verbose output.");
-    parser.set_optional<int>("r", "repetitions", 11, "Set the amount of repetitions for each matrix.");
+    Helper::IO::basicParserSetup(parser);
     parser.set_optional<std::vector<std::string>>("m", "methods", {"all"},
                                                   "The methods to run (comma separated list). To see a list "
                                                   "of all methods use '--print_methods'.");
     parser.set_optional<bool>("p", "print_methods", false, "Prints all available methods.");
-    parser.set_optional<bool>("c", "comparison", false, "Enables result checking of "
-                                                        "GPU calculations with previously generated CPU ones.");
-    parser.set_optional<bool>("no", "no-output", false, "Disables the output to file.");
 }
 
 int main(int argc, char* argv[]) {
@@ -58,7 +46,6 @@ int main(int argc, char* argv[]) {
                 auto methodVector = methodGroups[pair.first];
                 std::copy(methodVector.begin(), methodVector.end(), std::inserter(methodsToRun, methodsToRun.end()));
             }
-            break;
         } else {
             std::cout << parserMethod << " is not a valid method, use --print_methods to see a list of methods."
                       << std::endl;
@@ -74,12 +61,13 @@ int main(int argc, char* argv[]) {
     auto verbose = parser.get<bool>("v");
     auto csv = parser.get<std::string>("ft") == "csv";
     auto repetitions = parser.get<int>("r");
+    auto warmup = parser.get<int>("w");
     auto compare = parser.get<bool>("c");
     auto noOutput = parser.get<bool>("no");
-    auto file = noOutput ? "NO_OUTPUT_FILE" : parser.get<std::string>("f");
+    auto file = noOutput ? "NO_OUTPUT_FILE" : parser.get<std::string>("o");
 
     MatrixMultiplication matrixMultiplication(file, verbose, csv);
-    matrixMultiplication.enableCheck(compare).enableRepetitions(repetitions);
+    matrixMultiplication.enableCheck(compare).enableRepetitions(repetitions).enableWarmup(warmup);
 
     // FIXME remove after debugging
     matrixMultiplication.printInfo();

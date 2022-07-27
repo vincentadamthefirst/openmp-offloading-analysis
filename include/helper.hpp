@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include "../libs/cmdparser.hpp"
+
 #define EPSILON 0.001       // epsilon for float comparison
 #define BAR_SIZE 70         // size of progress bars
 
@@ -48,9 +50,32 @@ namespace Helper {
             std::cout << "] " << int(progress * 100.0) << "% " << info << (isFinal ? " \n" : " \r");
             std::cout.flush();
         }
+
+        /**
+         * Sets up the basic arguments of the CLI.
+         * @param parser the parser to add the arguments to.
+         */
+        void basicParserSetup(cli::Parser& parser) {
+            parser.set_optional<std::string>("o", "output", "GENERATE_NEW",
+                                             "File the output should be written to. If no file is given a "
+                                             "new file will be generated next to the executable.");
+            parser.set_optional<std::string>("ft", "file_type", "txt", "Set the formatting of the output. Must be 'txt' or "
+                                                                       "'csv'.");
+            parser.set_optional<bool>("v", "verbose", false, "Enable verbose output.");
+            parser.set_optional<int>("r", "repetitions", 11, "Sets the amount of repetitions for the methods.");
+            parser.set_optional<int>("w", "warmup", 5, "Sets the amount of warmup calculations for the methods.");
+            parser.set_optional<bool>("no", "no-output", false, "Disables the output to file.");
+            parser.set_optional<bool>("c", "comparison", false, "Enables result checking of "
+                                                                "GPU calculations with previously generated CPU ones.");
+        }
     }
 
     namespace Math {
+        /**
+         * Calculates the median of a vector of values.
+         * @param values the values to calculate the median of
+         * @return <median, min value, max value>
+         */
         std::tuple<double, double, double> calculateMedian(std::vector<double> values) {
             auto size = values.size();
             if (size == 1)
