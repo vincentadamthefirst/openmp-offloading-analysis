@@ -139,10 +139,6 @@ namespace Target {
             }
             return (end - start) * 1000.0;
         }
-
-
-
-
     }
 
 #if !NO_LOOP_DIRECTIVES

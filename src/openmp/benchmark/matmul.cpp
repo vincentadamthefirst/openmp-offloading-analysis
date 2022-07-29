@@ -49,16 +49,17 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
         auto meanGflops = Helper::Math::msToGFLOPs(meanExecTimeMs, MATRIX_SIZE);
         auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), MATRIX_SIZE);
 
-        runResults.push_back({methodNamesMapping[method], "1", warmup, repetitions, std::get<1>(medianExecTimeMs),
-                              std::get<2>(medianExecTimeMs), std::get<0>(medianExecTimeMs), meanExecTimeMs, meanGflops,
-                              medianGflops});
+        runResults.push_back({methodNamesMapping[method], "1",
+                              warmup, repetitions, MATRIX_SIZE,
+                              std::get<1>(medianExecTimeMs), std::get<2>(medianExecTimeMs),
+                              meanExecTimeMs, std::get<0>(medianExecTimeMs), meanGflops, medianGflops});
 
         if (verbose)
             std::cout << methodNamesMapping[method] << ": " << "AVG=" << meanExecTimeMs << "ms, (" << meanGflops
                       << " GFLOP/s) & MED=" << std::get<0>(medianExecTimeMs) << "ms, (" << medianGflops << " GFLOP/s)"
                       << std::endl << std::endl;
     } else {
-        runResults.push_back({methodNamesMapping[method], "0", warmup, repetitions, 0, 0, 0, 0, 0, 0});
+        runResults.push_back({methodNamesMapping[method], "0", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
     }
 
     free(C);
@@ -81,7 +82,7 @@ void MatrixMultiplication::execute(Method method) {
                 std::cout << "Skipping tiled shared memory matrix multiplication due to compiler flag." << std::endl;
                 std::cout << "To enable set NO_MEM_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
 #else
             runMethod(Target::Blocked::memoryAllocator, method);
 #endif
@@ -93,7 +94,7 @@ void MatrixMultiplication::execute(Method method) {
                           << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
 #else
             runMethod(Target::Loop::ijkCollapsedLoop, method);
 #endif
@@ -105,7 +106,7 @@ void MatrixMultiplication::execute(Method method) {
                           << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
 #else
             runMethod(Target::Loop::ijkOnlyLoop, method);
 #endif
@@ -129,7 +130,7 @@ void MatrixMultiplication::execute(Method method) {
                           << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
 #else
             runMethod(Target::Blocked::openmpBlockingThreadLimit, method);
 #endif

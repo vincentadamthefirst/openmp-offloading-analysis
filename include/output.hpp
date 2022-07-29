@@ -14,12 +14,17 @@ namespace Output {
     struct MatrixMultiplyRunResult {
         std::string method;
         std::string status;
+
         uint32_t warmup;
         uint32_t repetitions;
-        double maxExecutionTimeMs;
+        uint32_t matrixSize;
+
         double minExecutionTimeMs;
+        double maxExecutionTimeMs;
+
         double meanExecutionTimeMs;
         double medianExecutionTimeMs;
+
         double meanGflops;
         double medianGflops;
     };
@@ -38,7 +43,7 @@ namespace Output {
 
         // check if the file is empty (newly created) - if so write a new CSV header
         if (inFileStream.peek() == std::ifstream::traits_type::eof()) {
-            fileStream << "method_name,data_type,matrix_size,tile_size,repetitions,status,exec_time_min(ms),"
+            fileStream << "method_name,data_type,matrixSize,tile_size,repetitions,status,exec_time_min(ms),"
                           "exec_time_max(ms),exec_time_mean(ms),exec_time_median(ms),gflops_mean,gflops_median" << std::endl;
         }
 
@@ -47,7 +52,7 @@ namespace Output {
         for (const auto& runResult : results) {
             fileStream << runResult.method << ",";
             fileStream << typeid(DATA_TYPE).name() << ",";
-            fileStream << MATRIX_SIZE << ",";
+            fileStream << runResult.matrixSize << ",";
             fileStream << ((runResult.method.find("block") != std::string::npos) ? std::to_string(TILE_SIZE) : "0")
                        << ",";
             fileStream << runResult.repetitions << ",";
@@ -125,8 +130,7 @@ namespace Output {
         if (path == "GENERATE_NEW" || !fileCheck.good()) {
             // no file found, create a file
             std::string newName =
-                    path == "GENERATE_NEW" ? "matmul_result_" + std::to_string(MATRIX_SIZE) + "_" + timeString +
-                                                 (ft == CSV ? ".csv" : ".txt") : path;
+                    path == "GENERATE_NEW" ? "matmul_result_" + timeString + (ft == CSV ? ".csv" : ".txt") : path;
             std::cout << "No output file found, generate a new one (" << newName << ")" << std::endl;
 
             fileCheck.close();

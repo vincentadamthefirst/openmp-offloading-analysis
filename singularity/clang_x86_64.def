@@ -1,0 +1,60 @@
+Bootstrap: docker
+From: ubuntu:18.04
+
+%post
+	apt update && apt upgrade -y
+	apt-get install -y build-essential libstdc++6 make gcc git wget zlib1g-dev libssl-dev python3 libelf-dev libnuma-dev libudev-dev pkg-config libdrm-dev libffi-dev
+	
+	# installing cmake
+	cd /root
+	wget https://github.com/Kitware/CMake/releases/download/v3.23.2/cmake-3.23.2.tar.gz
+	tar xf cmake-3.23.2.tar.gz
+	cd cmake-3.23.2
+	./configure 
+	make -j$(nproc)
+	make install
+	
+	# cloning LLVM with the right commit
+	cd /root
+	git clone https://github.com/llvm/llvm-project.git -b main --single-branch
+	cd llvm-project
+	git reset --hard 02667734647856aedd6f20aa70dec2fbf283a979
+	
+	# installing ROCr & ROCt
+	SOURCE_DIR=/root/llvm-project
+	BUILD_DIR=/root/roc-build
+	INSTALL_PREFIX=/opt
+	
+	mkdir -p $BUILD_DIR
+
+	cd $SOURCE_DIR
+	git clone https://github.com/RadeonOpenCompute/ROCT-Thunk-Interface -b roc-5.2.x --single-branch
+	git clone https://github.com/RadeonOpenCompute/ROCR-Runtime -b rocm-5.2.x --single-branch
+
+	cd $BUILD_DIR && mkdir roct && cd roct
+	cmake $SOURCE_DIR/ROCT-Thunk-Interface/ -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+	make && make install
+
+	cd $BUILD_DIR && mkdir rocr && cd rocr
+	cmake $SOURCE_DIR/ROCR-Runtime/src -DIMAGE_SUPPORT=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+	make && make install
+	
+	# build #1
+	cd /root/llvm-project
+	mkdir build
+	cd build
+	cmake ../llvm/ -DCMAKE_BUILD_TYPE=Release -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=sm_80 -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=70,80 -DLLVM_TARGETS_TO_BUILD="X86;NVPTX;AMDGPU" -DLLVM_ENABLE_PROJECTS="clang;openmp"
+	make -j$(nproc)
+	
+	# build #2 (bootstrap)
+	cd ..
+	mkdir build2
+	cd build2
+	CC=../build/bin/clang CXX=../build/bin/clang++ cmake ../llvm/ -DCMAKE_BUILD_TYPE=Release -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=sm_80 -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=70,80 -DLLVM_TARGETS_TO_BUILD="X86;NVPTX;AMDGPU" -DLLVM_ENABLE_PROJECTS="clang;openmp" -DCMAKE_INSTALL_PREFIX=/opt
+	make -j$(nproc)
+	make install
+	
+	# installing NVHPC
+	echo 'deb [trusted=yes] https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' | tee /etc/apt/sources.list.d/nvhpc.list
+	apt update -o "Acquire::https::Verify-Peer=false" -y
+	apt-get install -o "Acquire::https::Verify-Peer=false" -y nvhpc-22-5

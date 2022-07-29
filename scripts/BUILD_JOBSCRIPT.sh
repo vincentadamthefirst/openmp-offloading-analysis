@@ -1,4 +1,4 @@
-export PATH=/opt/nvidia/hpc_sdk/Linux_ppc64le/22.5/compilers/bin:/.local/bin:$PATH
+export PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:$PATH
 
 SETTINGS_FOLDER="${BASH_SOURCE%/*}/settings/*"
 IGNORE=false
