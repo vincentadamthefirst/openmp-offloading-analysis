@@ -9,9 +9,6 @@
 #include "../host.hpp"
 #include <omp.h>
 
-// forward declaration
-void configureParser(cli::Parser& parser);
-
 /**
  * IJK matrix multiplication
  * I loop spread across teams
@@ -24,11 +21,12 @@ double multiplyIJK(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
-        for (int i = 0; i < SIZE; i++) {
-#pragma omp parallel for
-            for (int j = 0; j < SIZE; j++) {
-                for (int k = 0; k < SIZE; k++) {
+
+#pragma omp target teams distribute
+        for (int i = 0; i < SIZE; ++i) {
+#pragma omp parallel for //schedule(static)
+            for (int j = 0; j < SIZE; ++j) {
+                for (int k = 0; k < SIZE; ++k) {
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -50,11 +48,13 @@ double multiplyIKJ(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE *  SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
+
+#pragma omp target teams distribute shared(A, B, C) collapse(2)
         for (int i = 0; i < SIZE; i++) {
-#pragma omp parallel for
             for (int k = 0; k < SIZE; k++) {
+#pragma omp parallel for //collapse(2)
                 for (int j = 0; j < SIZE; j++) {
+#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -75,10 +75,12 @@ double multiplyJIK(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
+
+#pragma omp target teams distribute parallel for shared(A, B, C)
         for (int j = 0; j < SIZE; ++j) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(static) //collapse(2)
             for (int i = 0; i < SIZE; ++i) {
+//#pragma omp parallel for schedule(static)
                 for (int k = 0; k < SIZE; ++k) {
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
@@ -94,11 +96,14 @@ double multiplyJKI(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
-        for (int j = 0; j < SIZE; ++j) {
-#pragma omp parallel for
-            for (int k = 0; k < SIZE; ++k) {
-                for (int i = 0; i < SIZE; ++i) {
+
+        int i, j, k;
+#pragma omp target teams distribute shared(A, B, C) private(j)
+        for (j = 0; j < SIZE; ++j) {
+#pragma omp parallel for collapse(2)
+            for (k = 0; k < SIZE; ++k) {
+                for (i = 0; i < SIZE; ++i) {
+#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -113,17 +118,21 @@ double multiplyKIJ(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
-        for (int k = 0; k < SIZE; ++k) {
-#pragma omp parallel for
-            for (int i = 0; i < SIZE; ++i) {
-                for (int j = 0; j < SIZE; ++j) {
+
+        int i, j, k;
+#pragma omp target teams distribute shared(A, B, C) private(k)
+        for (k = 0; k < SIZE; ++k) {
+#pragma omp parallel for collapse(2)
+            for (i = 0; i < SIZE; ++i) {
+                for (j = 0; j < SIZE; ++j) {
+#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
         }
         end = omp_get_wtime();
     }
+
     return (end - start) * 1000.0;
 }
 
@@ -132,11 +141,14 @@ double multiplyKJI(const double *A, const double *B, double *C) {
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
-#pragma omp target teams distribute shared(A, B, C)
-        for (int k = 0; k < SIZE; ++k) {
-#pragma omp parallel for
-            for (int j = 0; j < SIZE; ++j) {
-                for (int i = 0; i < SIZE; ++i) {
+
+        int i, j, k;
+#pragma omp target teams distribute shared(A, B, C) private(k)
+        for (k = 0; k < SIZE; ++k) {
+#pragma omp parallel for collapse(2)
+            for (j = 0; j < SIZE; ++j) {
+                for (i = 0; i < SIZE; ++i) {
+#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -162,9 +174,10 @@ Output::MatrixMultiplyRunResult runAndTimeMethod(double (*functionPtr)(const dou
         if (repetition == 0 && compare != nullptr) {
             auto cmpResult = Helper::Matrix::compare(C, compare, MATRIX_SIZE);
             if (!cmpResult) {
+//                Helper::Matrix::print(C, SIZE);
+
                 Helper::IO::printProgress((double) (repetition + 1) / (repetitions + warmup),
                                           "(" + name + " ==ABORTED== )", true);
-                std::cout << "INCORRECT result for " << name << std::endl;
                 return {name, "0", repetitions, warmup, 0, 0, 0, 0, 0, 0};
             }
         }
@@ -173,6 +186,8 @@ Output::MatrixMultiplyRunResult runAndTimeMethod(double (*functionPtr)(const dou
 
         if (repetition >= warmup)
             runtimes.push_back(time);
+
+//        Helper::Matrix::print(C, SIZE);
 
         memset(C, 0, (size_t) MATRIX_SIZE * MATRIX_SIZE * sizeof(DT));
     }
@@ -184,6 +199,9 @@ Output::MatrixMultiplyRunResult runAndTimeMethod(double (*functionPtr)(const dou
 
     auto mean_gflops = Helper::Math::msToGFLOPs(mean, MATRIX_SIZE);
     auto median_gflops = Helper::Math::msToGFLOPs(std::get<0>(median), MATRIX_SIZE);
+
+    if (verbose)
+        std::cout << "Mean: " << mean_gflops << "GFLOPs" << std::endl;
 
     free(C);
 
@@ -205,12 +223,17 @@ int main(int argc, char* argv[]) {
     auto noOutput = parser.get<bool>("no");
     auto file = noOutput ? "NO_OUTPUT_FILE" : parser.get<std::string>("o");
 
-    auto A = Helper::Matrix::initializeRandom<double>(MATRIX_SIZE, -1, 1);
-    auto B = Helper::Matrix::initializeRandom<double>(MATRIX_SIZE, -1, 1);
+    auto A = Helper::Matrix::initializeRandom<double>(MATRIX_SIZE, 0, 1);
+    auto B = Helper::Matrix::initializeRandom<double>(MATRIX_SIZE, 0, 1);
     double* C = nullptr;
-    if (compare)
+    if (compare) {
         C = Helper::Matrix::initializeZero<double>(MATRIX_SIZE);
         Host::multiplyIKJParallel(A, B, C, MATRIX_SIZE);
+    }
+
+//    std::cout << "COMPARE = " << std::endl;
+//    Helper::Matrix::print(C, SIZE);
+//    std::cout << std::endl;
 
     std::vector<Output::MatrixMultiplyRunResult> results;
     results.push_back(runAndTimeMethod(multiplyIJK, "ijk", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
