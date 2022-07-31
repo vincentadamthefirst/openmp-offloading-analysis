@@ -1,5 +1,12 @@
 export PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:$PATH
 
+# Set what exactly should be compiled
+# TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
+TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
+# Base Name of the output
+# OUT_BASE="benchmark_"
+OUT_BASE="loop_order_"
+
 SETTINGS_FOLDER="${BASH_SOURCE%/*}/settings/*"
 IGNORE=false
 
@@ -8,11 +15,13 @@ for SETTINGS in $SETTINGS_FOLDER; do
     continue
   fi
 
-  source $SETTINGS
+  BASE_NAME=$(basename $SETTINGS)
 
-  if [ $IGNORE == true ]; then
+  if [[ ! " $*[*] " =~ ${BASE_NAME} ]]; then
     continue
   fi
+
+  source $SETTINGS
 
   # create necessary files
   mkdir -p slurm
@@ -43,9 +52,14 @@ for SETTINGS in $SETTINGS_FOLDER; do
   done
 
   echo "" >> $JOB_FILE
-  echo "singularity exec --nv ${SINGULARITY} ./slurm/${RUN_NAME}/singularity_script.sh" >> $JOB_FILE
 
-  echo "export PATH=${SINGULARITY_PATH}:\$PATH" > $SINGULARITY_FILE
+  if [ "${SINGULARITY}" != "" ]; then
+    echo "singularity exec --nv ${SINGULARITY} ./slurm/${RUN_NAME}/singularity_script.sh" >> $JOB_FILE
+    echo "export PATH=${SINGULARITY_PATH}:\$PATH" > $SINGULARITY_FILE
+  else
+    echo "./slurm/${RUN_NAME}/singularity_script.sh" >> $JOB_FILE
+    echo "" > $SINGULARITY_FILE
+  fi
 
   ADD_FLAGS=""
   for FLAG in "${ADDITIONAL_FLAGS[@]}"; do
@@ -57,9 +71,9 @@ for SETTINGS in $SETTINGS_FOLDER; do
     echo "# ${COMPILER}" >> $SINGULARITY_FILE
     for MATRIX_SIZE in "${SIZES[@]}"; do
       FLAGS="-acf=-DMATRIX_SIZE=${MATRIX_SIZE} ${ADD_FLAGS}"
-      "${BASH_SOURCE%/*}/COMPILE.sh" -c="${COMPILER}" "${FLAGS}" -i="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp" -tt="${TARGET_TRIPLE}" -ot="${TARGET_ARCH}" -v -o="slurm/${RUN_NAME}/${COMPILER}_${MATRIX_SIZE}"
-      chmod +x "./slurm/${RUN_NAME}/${COMPILER}_${MATRIX_SIZE}"
-      echo "./slurm/${RUN_NAME}/${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${COMPILER}.csv" >> $SINGULARITY_FILE
+      "${BASH_SOURCE%/*}/COMPILE.sh" -c="${COMPILER}" "${FLAGS}" -i="${TO_COMPILE}" -tt="${TARGET_TRIPLE}" -ot="${TARGET_ARCH}" -v -o="slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
+      chmod +x "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
+      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
     done
   done
 

@@ -78,12 +78,11 @@ double multiplyJKI(const double *A, const double *B, double *C) {
     {
         start = omp_get_wtime();
 
-        int i, j, k;
-#pragma omp target teams distribute shared(A, B, C) private(j)
-        for (j = 0; j < SIZE; ++j) {
+#pragma omp target teams distribute shared(A, B, C)
+        for (int j = 0; j < SIZE; ++j) {
 #pragma omp parallel for collapse(2)
-            for (k = 0; k < SIZE; ++k) {
-                for (i = 0; i < SIZE; ++i) {
+            for (int k = 0; k < SIZE; ++k) {
+                for (int i = 0; i < SIZE; ++i) {
 #pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }

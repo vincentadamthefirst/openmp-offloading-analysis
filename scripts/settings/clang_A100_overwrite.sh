@@ -1,4 +1,4 @@
-IGNORE=false
+IGNORE=true
 # slurm settings
 ACCOUNT="p_sp_adam"
 NUM_CORES="8"
