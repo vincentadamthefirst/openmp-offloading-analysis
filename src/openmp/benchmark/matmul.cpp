@@ -120,20 +120,20 @@ void MatrixMultiplication::execute(Method method) {
         case Method::IJK_COLLAPSED_SPMD:
             runMethod(Target::Basic::ijkCollapsedSPMD, method);
             break;
-        case Method::BLOCKED_SHMEM_IRREGULAR:
-            runMethod(Target::Blocked::irregularBlock, method);
-            break;
         case BLOCKED_K_THREAD_LIMIT:
 #if !OVERWRITE_DEFAULT_NUMS
             if (verbose) {
                 std::cout << "Skipping blocked with overwrite due to compiler flag."
                           << std::endl;
-                std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
+                std::cout << "To enable set OVERWRITE_DEFAULT_NUMS to true." << std::endl << std::endl;
             }
             runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
 #else
             runMethod(Target::Blocked::openmpBlockingThreadLimit, method);
 #endif
+            break;
+        case Method::IJK_REDUCTION:
+            runMethod(Target::Basic::ijkReduction, method);
             break;
     }
 }

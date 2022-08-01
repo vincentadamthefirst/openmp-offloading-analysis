@@ -7,11 +7,11 @@
 enum Method {
     IJK,
     IJK_COLLAPSED,
+    IJK_REDUCTION,
     IJK_COLLAPSED_LOOP,
     IJK_COLLAPSED_SPMD,
     IJK_LOOP,
     BLOCKED_SHMEM,
-    BLOCKED_SHMEM_IRREGULAR,
     BLOCKED_SHMEM_MEM_DIRECTIVES,
     BLOCKED_SHMEM_REDUCED_BC,
     BLOCKED_K,
@@ -22,11 +22,11 @@ enum Method {
 static std::map<Method, std::string> methodNamesMapping = {
         {Method::IJK,                          "ijk"},
         {Method::IJK_COLLAPSED,                "ijk_collapsed"},
+        {Method::IJK_REDUCTION,                "ijk_reduction"},
         {Method::IJK_COLLAPSED_LOOP,           "ijk_collapsed_loop"},
         {Method::IJK_COLLAPSED_SPMD,           "ijk_collapsed_spmd"},
         {Method::IJK_LOOP,                     "ijk_loop"},
         {Method::BLOCKED_SHMEM,                "blocked_shmem"},
-        {Method::BLOCKED_SHMEM_IRREGULAR,      "blocked_irregular"},
         {Method::BLOCKED_SHMEM_MEM_DIRECTIVES, "blocked_shmem_mem_directives"},
         {Method::BLOCKED_SHMEM_REDUCED_BC,     "blocked_shmem_reduced_bc"},
         {Method::BLOCKED_K,                    "blocked_k"},
@@ -37,11 +37,11 @@ static std::map<Method, std::string> methodNamesMapping = {
 static std::map<std::string, Method> methodNamesMappingReversed = {
         {"ijk",                          Method::IJK},
         {"ijk_collapsed",                Method::IJK_COLLAPSED},
+        {"ijk_reduction",                Method::IJK_REDUCTION},
         {"ijk_collapsed_loop",           Method::IJK_COLLAPSED_LOOP},
         {"ijk_collapsed_spmd",           Method::IJK_COLLAPSED_SPMD},
         {"ijk_loop",                     Method::IJK_LOOP},
         {"blocked_shmem",                Method::BLOCKED_SHMEM},
-        {"blocked_irregular",            Method::BLOCKED_SHMEM_IRREGULAR},
         {"blocked_shmem_mem_directives", Method::BLOCKED_SHMEM_MEM_DIRECTIVES},
         {"blocked_shmem_reduced_bc",     Method::BLOCKED_SHMEM_REDUCED_BC},
         {"blocked_k",                    Method::BLOCKED_K},
@@ -50,10 +50,10 @@ static std::map<std::string, Method> methodNamesMappingReversed = {
 
 // groups of methods
 static std::map<std::string, std::vector<Method>> methodGroups = {
-        {"basic",     {Method::IJK,                          Method::IJK_COLLAPSED,}},
+        {"basic",     {Method::IJK,                          Method::IJK_COLLAPSED,      Method::IJK_REDUCTION}},
         {"collapsed", {Method::IJK_COLLAPSED,                Method::IJK_COLLAPSED_SPMD, Method::IJK_COLLAPSED_LOOP,}},
         {"loop",      {Method::IJK_COLLAPSED_LOOP,           Method::IJK_LOOP}},
-        {"blocked",   {Method::BLOCKED_SHMEM_MEM_DIRECTIVES, Method::BLOCKED_SHMEM,      Method::BLOCKED_K,          Method::BLOCKED_K_THREAD_LIMIT, Method::BLOCKED_SHMEM_REDUCED_BC}},
+        {"blocked",   {Method::BLOCKED_SHMEM_MEM_DIRECTIVES, Method::BLOCKED_SHMEM,      Method::BLOCKED_K, Method::BLOCKED_K_THREAD_LIMIT, Method::BLOCKED_SHMEM_REDUCED_BC}},
 };
 
 namespace Target {
@@ -75,6 +75,33 @@ namespace Target {
                         for (int k = 0; k < SIZE; k++) {
                             C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                         }
+                    }
+                }
+
+                end = omp_get_wtime();
+            }
+            return (end - start) * 1000.0;
+        }
+
+        double ijkReduction(const DT *A, const DT *B, DT *C) {
+            double start, end;
+
+#pragma omp target data map(A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
+            {
+                start = omp_get_wtime();
+#if OVERWRITE_DEFAULT_NUMS
+#pragma omp target teams distribute collapse(2) shared(A, B, C) thread_limit(1024)
+#else
+#pragma omp target teams distribute collapse(2) shared(A, B, C)
+#endif
+                for (int i = 0; i < SIZE; i++) {
+                    for (int j = 0; j < SIZE; j++) {
+                        DT sum = 0;
+#pragma omp parallel for reduction(+:sum)
+                        for (int k = 0; k < SIZE; k++) {
+                            sum += A[i * SIZE + k] * B[k * SIZE + j];
+                        }
+                        C[i * SIZE + j] = sum;
                     }
                 }
 
@@ -151,6 +178,7 @@ namespace Target {
 #pragma omp target teams loop collapse(2) shared(A, B, C) default(none)
                 for (int i = 0; i < SIZE; i++) {
                     for (int j = 0; j < SIZE; j++) {
+#pragma omp loop bind(thread)
                         for (int k = 0; k < SIZE; k++) {
                             C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                         }
@@ -330,66 +358,6 @@ namespace Target {
             }
 
             return (end - start) * 1000.0;
-        }
-
-        double irregularBlock(const DT *A, const DT *B, DT *C) {
-//            double start, end;
-//#pragma omp target data map(A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
-//            {
-//                start = omp_get_wtime();
-//
-//                // start as many teams as there are blocks in the matrix
-//                // each team has TILE_SIZE * TILE_SIZE threads
-//#pragma omp target teams distribute num_teams((MATRIX_SIZE / 32) * (MATRIX_SIZE / 16)) collapse(2) thread_limit(32 * 16)
-//                for (int blockIdx = 0; blockIdx < (MATRIX_SIZE / 32); blockIdx++) {
-//                    for (int blockIdy = 0; blockIdy < (MATRIX_SIZE / 16); blockIdy++) {
-//                        // shared memory per block
-//                        // possible allocators: omp_pteam_mem_alloc, omp_cgroup_mem_alloc
-//                        DT a_shm[32][16];
-//                        DT b_shm[16][32];
-//
-//#pragma omp parallel num_threads(32 * 16) shared(A, B, C, a_shm, b_shm, blockIdx, blockIdy) default(none)
-//                        {
-//                            // from here on the code resembles CUDA
-//                            DT tmp_c = 0;
-//
-//                            int threadNum = omp_get_thread_num();
-//
-//                            int threadIdx = threadNum % 32;
-//                            int threadIdy = threadNum / 16;
-//
-//                            int row = blockIdy * 16 + threadIdy;
-//                            int col = blockIdx * 32 + threadIdx;
-//
-//                            // loop over an entire row / column of tiles
-//                            for (int k = 0; k < 32; k++) {
-//                                // read the data to shared memory, each thread stores 1 element in a_shm and 1 in b_shm
-//                                a_shm[threadIdx][threadIdy] = A[row * SIZE + k * 32 + threadIdx];
-//                                a_shm[threadIdy][threadIdx] = 0; //TODO
-//
-////                                a_shm[threadIdy][threadIdx] = A[row * SIZE + k * TILE_SIZE + threadIdx];
-////                                b_shm[threadIdy][threadIdx] = B[(k * TILE_SIZE + threadIdy) * SIZE + col];
-//
-//
-//                                b_shm[threadIdy][threadIdx] = B[(k * 32 + threadIdy) * SIZE + col];
-//#pragma omp barrier
-//                                // perform the calculations on the previously stored shared memory
-//                                for (int n = 0; n < 16; n++) {
-//                                    tmp_c += a_shm[threadIdy][n] * b_shm[n][threadIdx];
-//                                }
-//#pragma omp barrier
-//                            }
-//
-//                            C[(row * SIZE) + col] = tmp_c;
-//                        }
-//                    }
-//                }
-//
-//                end = omp_get_wtime();
-//            }
-//
-//            return (end - start) * 1000.0;
-            return 1;
         }
 
 #if !NO_MEM_DIRECTIVES

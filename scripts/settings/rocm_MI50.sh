@@ -1,4 +1,3 @@
-IGNORE=false
 # slurm settings
 ACCOUNT="p_taurusamdgpu"
 NUM_CORES="64"

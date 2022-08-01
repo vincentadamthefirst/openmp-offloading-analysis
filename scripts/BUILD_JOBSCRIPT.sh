@@ -1,11 +1,11 @@
-export PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:$PATH
+export PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:/opt/rocm-5.2.0/llvm/bin:$PATH
 
 # Set what exactly should be compiled
-# TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
-TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
+TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
+#TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
 # Base Name of the output
-# OUT_BASE="benchmark_"
-OUT_BASE="loop_order_"
+OUT_BASE="benchmark_"
+#OUT_BASE="loop_order_"
 
 SETTINGS_FOLDER="${BASH_SOURCE%/*}/settings/*"
 IGNORE=false

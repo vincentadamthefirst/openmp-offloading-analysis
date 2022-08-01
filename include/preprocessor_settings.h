@@ -69,10 +69,6 @@
 #define OVERWRITE_DEFAULT_NUMS false
 #endif
 
-#if OVERWRITE_DEFAULT_NUMS
-#warning "Overwrite on!"
-#endif
-
 // shortcuts
 #define DT DATA_TYPE
 #define SIZE MATRIX_SIZE

@@ -18,7 +18,7 @@ CFLAGS_DEBUG="-std=c++11 -O0"
 # actual compiler call
 CLANG_COMPILER=clang++
 # settings to enable OpenMP (offloading) in CLANG
-CLANG_OPENMP_FLAGS="-fopenmp -fopenmp-targets=%TARGET_TRIPLE% -fopenmp-version=51 --offload-arch=%OFFLOAD_ARCH%"
+CLANG_OPENMP_FLAGS="-fopenmp -fopenmp-targets=%TARGET_TRIPLE% --offload-arch=%OFFLOAD_ARCH%"
 # flags the generally are part of the call to CLANG
 CLANG_DEFAULT_FLAGS="-Ofast"
 # flags that should be used in case a debug compile is issued
@@ -55,7 +55,7 @@ XLC_DEFAULT_FLAGS="-Ofast"
 # flags that should be used in case a debug compile is issued
 XLC_DEBUG_FLAGS="-g"
 # benchmark compilation specific flags
-XLC_BENCHMARK_FLAGS="-DNO_LOOP_DIRECTIVES"
+XLC_BENCHMARK_FLAGS="-DNO_LOOP_DIRECTIVES -DNO_MEM_DIRECTIVES"
 
 #
 # NVC compiler configuration
