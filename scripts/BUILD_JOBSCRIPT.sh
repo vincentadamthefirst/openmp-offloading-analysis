@@ -1,4 +1,4 @@
-export PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:/opt/rocm-5.2.0/llvm/bin:$PATH
+export PATH=/opt/nvidia/hpc_sdk/Linux_ppc64le/22.5/compilers/bin:/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:/opt/rocm-5.2.0/llvm/bin:$PATH
 
 # Set what exactly should be compiled
 TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
@@ -73,7 +73,8 @@ for SETTINGS in $SETTINGS_FOLDER; do
       FLAGS="-acf=-DMATRIX_SIZE=${MATRIX_SIZE} ${ADD_FLAGS}"
       "${BASH_SOURCE%/*}/COMPILE.sh" -c="${COMPILER}" "${FLAGS}" -i="${TO_COMPILE}" -tt="${TARGET_TRIPLE}" -ot="${TARGET_ARCH}" -v -o="slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
       chmod +x "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
-      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
+      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ijk_reduction -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
+#      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
     done
   done
 
