@@ -2,7 +2,7 @@
 #include "../../include/helper.hpp"
 #include "../../include/output.hpp"
 #include "../../libs/cmdparser.hpp"
-#include "../cublas/cuda_helper.cuh"
+#include "../rocblas/error_macros.h"
 
 #include <iostream>
 #include <chrono>
@@ -65,13 +65,13 @@ int main(int argc, char* argv[]) {
 
     double *d_A, *d_B, *d_C;
 
-    CHECK_CUDA(cudaMalloc((void**) &d_A, SIZE * SIZE * sizeof(double)));
-    CHECK_CUDA(cudaMalloc((void**) &d_B, SIZE * SIZE * sizeof(double)));
-    CHECK_CUDA(cudaMalloc((void**) &d_C, SIZE * SIZE * sizeof(double)));
+    CHECK_HIP_ERROR(hipMalloc((void**) &d_A, SIZE * SIZE * sizeof(double)));
+    CHECK_HIP_ERROR(hipMalloc((void**) &d_B, SIZE * SIZE * sizeof(double)));
+    CHECK_HIP_ERROR(hipMalloc((void**) &d_C, SIZE * SIZE * sizeof(double)));
 
-    CHECK_CUDA(cudaMemcpy(d_A, h_A, SIZE * SIZE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(d_B, h_B, SIZE * SIZE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(d_C, h_C, SIZE * SIZE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_HIP_ERROR(hipMemcpy(d_A, h_A, SIZE * SIZE * sizeof(double), hipMemcpyHostToDevice));
+    CHECK_HIP_ERROR(hipMemcpy(d_B, h_B, SIZE * SIZE * sizeof(double), hipMemcpyHostToDevice));
+    CHECK_HIP_ERROR(hipMemcpy(d_C, h_C, SIZE * SIZE * sizeof(double), hipMemcpyHostToDevice));
 
     dim3 grid(TAS, TAS);
     dim3 block(TILE_SIZE, TILE_SIZE);
@@ -88,8 +88,8 @@ int main(int argc, char* argv[]) {
         if (verbose)
             std::cout << "Preparing device..." << std::endl;
         matmul<<<grid, block>>>(d_A, d_B, d_C);
-        CHECK_CUDA(cudaDeviceSynchronize());
-        CHECK_CUDA(cudaMemcpy(h_C, d_C, SIZE * SIZE * sizeof(double), cudaMemcpyDeviceToHost));
+        CHECK_HIP_ERROR(hipDeviceSynchronize());
+        CHECK_HIP_ERROR(hipMemcpy(h_C, d_C, SIZE * SIZE * sizeof(double), hipMemcpyDeviceToHost));
         if (verbose)
             std::cout << "Done. Comapring..." << std::endl;
 
@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 
     std::vector<double> runtimes;
 
-    for (int r = 0; r < 11; r++) {
+    for (int r = 0; r < repetitions + warmup; r++) {
         if (verbose) {
             if (r < warmup)
                 std::cout << "warmup #" << r << std::endl;
@@ -112,11 +112,11 @@ int main(int argc, char* argv[]) {
         t1 = std::chrono::high_resolution_clock::now();
 
         matmul<<<grid, block>>>(d_A, d_B, d_C);
-        CHECK_CUDA(cudaDeviceSynchronize());
+        CHECK_HIP_ERROR(hipDeviceSynchronize());
 
         t2 = std::chrono::high_resolution_clock::now();
 
-        CHECK_CUDA(cudaMemcpy(h_C, d_C, SIZE * SIZE * sizeof(double), cudaMemcpyDeviceToHost));
+        CHECK_HIP_ERROR(hipMemcpy(h_C, d_C, SIZE * SIZE * sizeof(double), hipMemcpyDeviceToHost));
 
         if (r >= warmup)
             runtimes.push_back(std::chrono::duration<double, std::milli>(t2 - t1).count());
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), SIZE);
 
     Output::MatrixMultiplyRunResult result;
-    result.method = "CUDA";
+    result.method = "HIP";
     result.status = "1";
     result.warmup = warmup;
     result.repetitions = repetitions;
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
 
     Output::writeOutput(std::move(filename), csv ? Output::FileType::CSV : Output::FileType::TXT, {result});
 
-    CHECK_CUDA(cudaFree(d_A));
-    CHECK_CUDA(cudaFree(d_B));
-    CHECK_CUDA(cudaFree(d_C));
+    CHECK_HIP_ERROR(hipFree(d_A));
+    CHECK_HIP_ERROR(hipFree(d_B));
+    CHECK_HIP_ERROR(hipFree(d_C));
 }

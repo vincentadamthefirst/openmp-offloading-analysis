@@ -42,7 +42,7 @@ double multiplyIJKReduction(const double *A, const double *B, double *C) {
         for (int i = 0; i < SIZE; ++i) {
 
             for (int j = 0; j < SIZE; ++j) {
-#pragma omp parallel for reduction(+:C[0:SIZE * SIZE])
+//#pragma omp parallel for reduction(+:C[0:SIZE * SIZE])
                 for (int k = 0; k < SIZE; ++k) {
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
@@ -63,9 +63,11 @@ double multiplyIKJ(const double *A, const double *B, double *C) {
 #pragma omp target teams distribute shared(A, B, C) collapse(2)
         for (int i = 0; i < SIZE; i++) {
             for (int k = 0; k < SIZE; k++) {
-#pragma omp parallel for
+                int start = i * SIZE;
+                int end = start + SIZE;
+#pragma omp parallel for reduction(+:C[start:end])
                 for (int j = 0; j < SIZE; j++) {
-#pragma omp atomic
+//#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -231,8 +233,8 @@ int main(int argc, char* argv[]) {
 
     std::vector<Output::MatrixMultiplyRunResult> res;
     res.push_back(runAndTimeMethod(multiplyIJK, "ijk", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-    res.push_back(runAndTimeMethod(multiplyIJKReduction, "ijk (reduction)", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyIKJ, "ikj", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+//    res.push_back(runAndTimeMethod(multiplyIJKReduction, "ijk (reduction)", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+    res.push_back(runAndTimeMethod(multiplyIKJ, "ikj", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
 //    res.push_back(runAndTimeMethod(multiplyJIK, "jik", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
 //    res.push_back(runAndTimeMethod(multiplyJKI, "jki", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
 //    res.push_back(runAndTimeMethod(multiplyKIJ, "kij", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));

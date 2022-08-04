@@ -61,12 +61,6 @@ double MatMulCUBLAS<double>(cublasHandle_t& handle, const double *A, const doubl
     //cudaThreadSynchronize();
     auto t1 = std::chrono::high_resolution_clock::now();
     cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha, A, size, B, size, &beta, C, size);
-//    cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha,
-//                 A, CUDA_R_64F, size,
-//                 B, CUDA_R_64F, size, &beta,
-//                 C, CUDA_R_64F, size,
-//                 CUBLAS_COMPUTE_64F_PEDANTIC, CUBLAS_GEMM_ALGO0);
-    //cudaThreadSynchronize();
     cudaDeviceSynchronize();
     auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -82,7 +76,11 @@ cublasHandle_t prepareHandle<float>(bool tensor) {
 
     cublasHandle_t handle;
     cublasCreate(&handle);
-    cublasSetMathMode(handle, tensor ? /*CUBLAS_TENSOR_OP_MATH*/ CUBLAS_TF32_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH);
+#if V100
+    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH);
+#else
+    cublasSetMathMode(handle, tensor ? CUBLAS_TF32_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH);
+#endif
 
     std::cout << "Done." << std::endl;
     return handle;
@@ -94,7 +92,11 @@ cublasHandle_t prepareHandle<double>(bool tensor) {
 
     cublasHandle_t handle;
     cublasCreate(&handle);
-    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH : /*CUBLAS_DEFAULT_MATH*/ CUBLAS_PEDANTIC_MATH);
+#if V100
+    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH);
+#else
+    cublasSetMathMode(handle, tensor ? CUBLAS_TENSOR_OP_MATH : CUBLAS_PEDANTIC_MATH);
+#endif
 
     std::cout << "Done." << std::endl;
     return handle;
@@ -122,7 +124,7 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
             T *d_C;
             CHECK_CUDA(cudaMalloc(&d_C, totalSize));
             auto runtime = MatMulCUBLAS<T>(handle, d_A, d_B, d_C, matrixSize);
-            if (repetition > warmup)
+            if (repetition >= warmup)
                 runtimes.push_back(runtime);
             CHECK_CUDA(cudaFree(d_C));
             if (verbose) {

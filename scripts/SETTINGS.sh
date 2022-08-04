@@ -109,7 +109,7 @@ AOMP_BENCHMARK_FLAGS="-DNO_LOOP_DIRECTIVES"
 # actual compiler call
 CUDA_COMPILER=nvcc
 # flags the generally are part of the call to CUDA
-CUDA_DEFAULT_FLAGS="-fast -lcurand -arch=%OFFLOAD_ARCH%"
+CUDA_DEFAULT_FLAGS="-lcurand -arch=%OFFLOAD_ARCH%"
 # flags that should be used in case a debug compile is issued
 CUDA_DEBUG_FLAGS="-g -lcurand -arch=%OFFLOAD_ARCH%"
 # benchmark compilation specific flags
@@ -122,7 +122,7 @@ CUDA_BENCHMARK_FLAGS=""
 # actual compiler call
 HIP_COMPILER=hipcc
 # flags the generally are part of the call to HIP
-HIP_DEFAULT_FLAGS="-lrocblas -lhiprand"
+HIP_DEFAULT_FLAGS="-lhiprand"
 # flags that should be used in case a debug compile is issued
 HIP_DEBUG_FLAGS="-g"
 # benchmark compilation specific flags

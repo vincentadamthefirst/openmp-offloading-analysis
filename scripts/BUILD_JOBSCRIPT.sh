@@ -3,9 +3,23 @@ export PATH=/opt/nvidia/hpc_sdk/Linux_ppc64le/22.5/compilers/bin:/opt/nvidia/hpc
 # Set what exactly should be compiled
 TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
 #TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
+#TO_COMPILE="${BASH_SOURCE%/*}/../src/cuda/main_cuda.cu"
+#TO_COMPILE="${BASH_SOURCE%/*}/../src/hip/main_hip.cpp"
 # Base Name of the output
-OUT_BASE="benchmark_"
+OUT_BASE="blocked_benchmark_"
 #OUT_BASE="loop_order_"
+
+#SIZES=("128" "256" "512" "1024" "2048" "4096" "8192")
+SIZES=()
+
+for i in {256..4096..256}
+do
+    SIZES+=("${i}")
+done
+
+METHODS="blocked_shmem blocked_k blocked_k_thread_limit"
+REPETITIONS=11
+WARMUP=5
 
 SETTINGS_FOLDER="${BASH_SOURCE%/*}/settings/*"
 IGNORE=false
@@ -73,8 +87,8 @@ for SETTINGS in $SETTINGS_FOLDER; do
       FLAGS="-acf=-DMATRIX_SIZE=${MATRIX_SIZE} ${ADD_FLAGS}"
       "${BASH_SOURCE%/*}/COMPILE.sh" -c="${COMPILER}" "${FLAGS}" -i="${TO_COMPILE}" -tt="${TARGET_TRIPLE}" -ot="${TARGET_ARCH}" -v -o="slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
       chmod +x "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE}"
-      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ijk_reduction -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
-#      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
+      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -m ${METHODS} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
+#      echo "./slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}_${MATRIX_SIZE} -r ${REPETITIONS} -w ${WARMUP} -ft csv -o slurm/${RUN_NAME}/${OUT_BASE}${COMPILER}.csv" >> $SINGULARITY_FILE
     done
   done
 

@@ -5,10 +5,11 @@
 #include <cstdlib>
 
 #include "../../include/helper.hpp"
+#include "../../include/output.hpp"
 #include "../../libs/cmdparser.hpp"
 
 #include "error_macros.h"
-#include <rocblas.h>
+#include <rocblas/rocblas.h>
 #include <hip/hip_runtime.h>
 #include <hiprand/hiprand.h>
 
@@ -81,8 +82,7 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
          unsigned long long seed) {
     auto handle = prepareHandle();
 
-    std::ofstream fileStream;
-    fileStream.open(path, std::ios_base::app);
+    std::vector<Output::MatrixMultiplyRunResult> runResults;
 
     for (uint32_t matrixSize = mStart; matrixSize <= mEnd; matrixSize *= 2) {
         auto totalSize = matrixSize * matrixSize * sizeof(T);
@@ -112,44 +112,31 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
             }
         }
 
-        auto timeMed = std::get<0>(Helper::Math::calculateMedian(runtimes));
-        auto timeAvg = Helper::Math::calculateMean(runtimes);
+        auto meanExecTimeMs = Helper::Math::calculateMean(runtimes);
+        auto medianExecTimeMs = Helper::Math::calculateMedian(runtimes);
 
-        std::string info = "MED= " + std::to_string(timeMed) + "ms (" +
-                           std::to_string(Helper::Math::msToGFLOPs(timeMed, matrixSize)) + " GFLOP/s) " +
-                           "AVG= " + std::to_string(timeAvg) + "ms (" +
-                           std::to_string(Helper::Math::msToGFLOPs(timeAvg, matrixSize)) + " GFLOP/s) ";
+        auto meanGflops = Helper::Math::msToGFLOPs(meanExecTimeMs, matrixSize);
+        auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), matrixSize);
 
-        if (verbose)
-            std::cout << "  RESULTS: " << info << std::endl << std::endl;
-
-        if (isCsv) {
-            // TODO
-        } else {
-            fileStream << "[ROCBLAS SIZE=" << matrixSize << ", REP=" << repetitions << "] "
-                       << info << std::endl;
-        }
+        runResults.push_back({"rocBLAS", "1",
+                              warmup, repetitions, matrixSize,
+                              std::get<1>(medianExecTimeMs), std::get<2>(medianExecTimeMs),
+                              meanExecTimeMs, std::get<0>(medianExecTimeMs), meanGflops, medianGflops});
 
         CHECK_HIP_ERROR(hipFree(d_A));
         CHECK_HIP_ERROR(hipFree(d_B));
     }
 
-    fileStream.close();
     rocblas_destroy_handle(handle);
+
+    Output::writeOutput(std::move(path), isCsv ? Output::FileType::CSV : Output::FileType::TXT, runResults);
 }
 
 void configureParser(cli::Parser& parser) {
+    Helper::IO::basicParserSetup(parser);
     parser.set_optional<int>("s", "matrix_size_start", 4096,
                              "Start size of matrices. Will be doubled until matrix_size_end.");
     parser.set_optional<int>("e", "matrix_size_end", 16384, "End size of matrices (will be included).");
-    parser.set_optional<int>("r", "repetitions", 11, "Set the amount of repetitions for each matrix.");
-    parser.set_optional<int>("w", "warmup", 11, "Set the amount of repetitions that are executed for warmup.");
-    parser.set_optional<std::string>("ft", "file_type", "txt", "Set the formatting of the output. Must be 'txt' or "
-                                                               "'csv'.");
-    parser.set_optional<std::string>("f", "file", "GENERATE_NEW",
-                                     "File the output should be written to. If no file is given a "
-                                     "new file will be generated next to the executable.");
-    parser.set_optional<bool>("v", "verbose", false, "Enable verbose output.");
     parser.set_optional<std::string>("p", "precision", "f64","The data type to use on the accelerator.");
 }
 
@@ -160,38 +147,15 @@ int main(int argc, char* argv[]) {
 
     auto csv = parser.get<std::string>("ft") == "csv";
     auto precision = parser.get<std::string>("p");
-    auto filename = parser.get<std::string>("f");
+    auto filename = parser.get<std::string>("o");
     auto verbose = parser.get<bool>("v");
     auto repetitions = parser.get<int>("r");
     auto warmup = parser.get<int>("w");
     repetitions = repetitions < 1 ? 1 : repetitions;
     auto matrixSizeStart = parser.get<int>("s");
     auto matrixSizeEnd = parser.get<int>("e");
-
-    time_t rawtime;
-    struct tm * timeinfo;
-    char buffer[80];
-
-    time (&rawtime);
-    timeinfo = localtime(&rawtime);
-
-    strftime(buffer,sizeof(buffer),"%d-%m-%Y_%H:%M:%S",timeinfo);
-    std::string timeString(buffer);
-
-    std::ifstream fileCheck(filename.c_str());
-    if (filename == "GENERATE_NEW" || !fileCheck.good()) {
-        // no file found, create a file
-        std::string newName =
-                filename == "GENERATE_NEW" ? "rocblas_result_" + std::to_string(matrixSizeStart) + "-" +
-                                             std::to_string(matrixSizeEnd) + "_" + timeString + (csv ? ".csv" : ".txt")
-                                           : filename;
-        std::cout << "No output file found, generate a new one (" << newName << ")" << std::endl;
-
-        fileCheck.close();
-        std::ofstream newFile(newName);
-        newFile.close();
-        filename = newName;
-    }
+    if (parser.get<bool>("no"))
+        filename = "NO_OUTPUT_FILE";
 
     if (precision == "f32") {
         run<float>(filename, csv, verbose, repetitions, warmup, matrixSizeStart, matrixSizeEnd,
