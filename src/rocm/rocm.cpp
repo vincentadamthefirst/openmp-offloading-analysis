@@ -2,18 +2,17 @@
 #include <omp.h>
 
 #define SIZE 16777216 // 2^24
-#define THREADS_PER_TEAM 1024
-#define NUM_TEAMS 16384 // = SIZE / THREADS_PER_TEAM
-#define BLOCK 128
+#define THREADS_PER_TEAM 512
+#define NUM_TEAMS 32768 // = SIZE / THREADS_PER_TEAM
 
 void copy(double* A, double* B) {
 #pragma omp target data map(to:A[0:SIZE]) map(tofrom:B[0:SIZE])
     {
         size_t i, j;
-#pragma omp target teams distribute //num_teams(NUM_TEAMS)
-        for (i = 0; i < SIZE; i += BLOCK) {
-#pragma omp parallel for num_threads(BLOCK)
-            for (j = i; j < i + BLOCK; j++) {
+#pragma omp target teams distribute num_teams(NUM_TEAMS) thread_limit(THREADS_PER_TEAM)
+        for (i = 0; i < SIZE; i += THREADS_PER_TEAM) {
+#pragma omp parallel for num_threads(THREADS_PER_TEAM)
+            for (j = i; j < i + THREADS_PER_TEAM; j++) {
                 B[j] = A[j];
             }
         }
@@ -34,13 +33,13 @@ int main() {
 
     copy(A, B);
 
-//    bool correct = true;
-//    for (uint64_t i = 0; i < SIZE; i++) {
-//        if (std::abs(A[i] - B[i]) > 0.0001) {
-//            correct = false;
-//            break;
-//        }
-//    }
-//
-//    std::cout << "copy was " << (correct ? "CORRECT" : "NOT CORRECT");
+    bool correct = true;
+    for (uint64_t i = 0; i < SIZE; i++) {
+        if (std::abs(A[i] - B[i]) > 0.0001) {
+            correct = false;
+            break;
+        }
+    }
+
+    std::cout << "copy was " << (correct ? "CORRECT" : "NOT CORRECT") << std::endl;
 }

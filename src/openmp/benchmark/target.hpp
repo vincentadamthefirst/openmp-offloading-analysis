@@ -198,7 +198,7 @@ namespace Target {
                 for (int i = 0; i < SIZE; i++) {
 #pragma omp loop
                     for (int j = 0; j < SIZE; j++) {
-#pragma omp loop bind(thread)
+#pragma omp loop
                         for (int k = 0; k < SIZE; k++) {
                             C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                         }
@@ -442,7 +442,7 @@ namespace Target {
             {
                 start = omp_get_wtime();
 
-#pragma omp target teams distribute num_teams(SIZE)
+#pragma omp target teams distribute num_teams(2048)
                 for (int i = 0; i < SIZE; ++i) {
                     int in = i * SIZE;
                     double a_tmp[K_BLOCK_SIZE];
@@ -478,7 +478,7 @@ namespace Target {
             {
                 start = omp_get_wtime();
 
-#pragma omp target teams distribute num_teams(SIZE) thread_limit(1024)
+#pragma omp target teams distribute thread_limit(1024) // num_teams(SIZE)
                 for (int i = 0; i < SIZE; ++i) {
                     int in = i * SIZE;
                     double a_tmp[K_BLOCK_SIZE];

@@ -134,7 +134,7 @@ COMPILER_SETTINGS="${COMPILER_SETTINGS} ${ADDITIONAL_COMPILE_FLAGS[*]}"
 
 if [ ${VERBOSE} ]; then
   echo "Total compile settings: "
-  echo "${COMPILER_SETTINGS}"
+  echo "${!COMPILER_CMD} ${COMPILER_SETTINGS}"
 fi
 
 # execute the command

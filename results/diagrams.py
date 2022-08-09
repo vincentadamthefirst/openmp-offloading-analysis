@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
-markers = ["*", ".", "x", "^", "+", "D", "v", "1", "2", "3", "4", "<", ">"]
-max_gflops = {"V100": 7800, "A100": 9700, "MI50": 6600, "A100t": 19500}
+markers = ["*", ".", "x", "^", "+", "s", "v", "1", "2", "3", "4", "<", ">"]
+max_gflops = {"V100": 7800, "A100": 9700, "MI50": 6600, "A100t": 19500, "MI250": 45260}
 
 
 def read_files(base_path):
@@ -242,6 +242,7 @@ def plot_blocked_compiler_comparison(matrix_sizes, total_results, header, file_n
 
     if title is not None:
         axs.set_title(title)
+
     axs.set_xlabel("matrix size")
     axs.set_ylabel("GFLOPs" if main_y == "gflops" else "% of peak performance")
     fig.savefig("images/" + file_name + "." + file_type, dpi=300, bbox_inches='tight')
@@ -256,11 +257,47 @@ def plot_benchmark():
             'size': 8}
     plt.rc('font', **font)
 
+    # Simple methods, split by GPU
+    plot_method_comparison_bar(
+        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+        method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
+                       "ijk (reduction,\nSPMD)"],
+        matrix_size=4096, total_results=total_results, header=header,
+        file_name="method_comparisons/simple_methods_V100", include_compilers=["clang (V100)", "nvc (V100)",
+                                                                               "xlc (V100)"],
+        compiler_titles={"clang (V100)": "clang++", "nvc (V100)": "nvc++", "xlc (V100)": "xlc++"},
+        compiler_colors={"clang (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc (V100)": "tab:orange"},
+        main_y="gflops", secondary_y="%", file_type="pdf"
+    )
+
+    plot_method_comparison_bar(
+        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+        method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
+                       "ijk (reduction,\nSPMD)"],
+        matrix_size=4096, total_results=total_results, header=header,
+        file_name="method_comparisons/simple_methods_A100", include_compilers=["clang (A100)", "nvc (A100)"],
+        compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++", "xlc (A100)": "xlc++"},
+        compiler_colors={"clang (A100)": "tab:blue", "nvc (A100)": "tab:green", "xlc (A100)": "tab:orange"},
+        main_y="gflops", secondary_y="%", file_type="pdf"
+    )
+
+    plot_method_comparison_bar(
+        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+        method_titles=["ijk", "ijk\n(collapsed i & j)",  "ijk (loop)", "ijk\n(reduction)",
+                       "ijk (reduction,\nparallel region for SPMD)"],
+        matrix_size=4096, total_results=total_results, header=header,
+        file_name="method_comparisons/simple_methods_rocm",
+        include_compilers=["rocm* (MI50)", "rocm* (MI250)"],
+        compiler_titles={"rocm* (MI50)": "rocm (MI50)", "rocm* (MI250)": "rocm (MI250)"},
+        compiler_colors={"rocm* (MI50)": "tab:pink", "rocm* (MI250)": "tab:cyan"},
+        main_y="gflops", secondary_y="%", file_type="pdf"
+    )
+
     # Blocked methods, split by GPU
     plot_method_comparison_bar(
         method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
-        method_titles=["blocked\n(A & B shmem)", "blocked\n(mem. allocators)", "blocked\n(A shmem)",
-                       "blocked (A shmem\n+ thread limit=1024)"],
+        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
+                       "blocked\n(A + thread limit=1024)"],
         matrix_size=4096, total_results=total_results, header=header,
         file_name="method_comparisons/blocked_methods_A100", # title="blocked methods on A100 (matrix size = 4096)",
         include_compilers=["clang* (A100)", "nvc (A100)"],
@@ -271,14 +308,26 @@ def plot_benchmark():
 
     plot_method_comparison_bar(
         method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
-        method_titles=["blocked\n(A & B shmem)", "blocked (A & B shmem\n+ mem. allocators)", "blocked\n(A shmem)",
-                       "blocked (A shmem\n+ thread limit=1024)"],
+        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
+                       "blocked\n(A + thread limit=1024)"],
         matrix_size=4096, total_results=total_results, header=header,
         file_name="method_comparisons/blocked_methods_V100", # title="blocked methods on V100 (matrix size = 4096)",
         include_compilers=["clang* (V100)", "nvc (V100)", "xlc* (V100)"],
         compiler_titles={"clang* (V100)": "clang++", "nvc (V100)": "nvc++", "xlc* (V100)": "xlc++"},
         compiler_colors={"clang* (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc* (V100)": "tab:orange"},
         main_y="gflops", secondary_y="%", file_type="pdf"
+    )
+
+    plot_method_comparison_bar(
+        method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
+        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
+                       "blocked\n(A + thread limit=1024)"],
+        matrix_size=4096, total_results=total_results, header=header,
+        file_name="method_comparisons/blocked_methods_rocm",
+        include_compilers=["rocm* (MI50)", "rocm* (MI250)"],
+        compiler_titles={"rocm* (MI50)": "rocm (MI50)", "rocm* (MI250)": "rocm (MI250)"},
+        compiler_colors={"rocm* (MI50)": "tab:pink", "rocm* (MI250)": "tab:cyan"},
+        main_y="%", file_type="pdf"
     )
 
     # Comparison CUDA & other compilers
@@ -323,8 +372,8 @@ def plot_blocked():
         include_compilers=["clang (V100)", "nvc (V100)", "xlc (V100)"],
         file_name="blocked/blocked_only_A_V100", # title="blocked (only A in shared memory) on V100",
         compiler_colors={"clang (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc (V100)": "tab:orange"},
-        compiler_method_names={"clang (V100)": "blocked_k_thread_limit", "nvc (V100)": "blocked_k", 
-                               "xlc (V100)": "blocked_k_thread_limit"},
+        compiler_method_names={"clang (V100)": "blocked_k_thread_limit", "nvc (V100)": "blocked_k",
+                               "xlc (V100)": "blocked_k"},
         compiler_titles={"clang (V100)": "clang++", "nvc (V100)": "nvc++", "xlc (V100)": "xlc++"},
         secondary_y="%", tick_rotation=45, file_type="pdf"
     )
@@ -338,6 +387,17 @@ def plot_blocked():
         compiler_method_names={"clang (A100)": "blocked_k_thread_limit", "nvc (A100)": "blocked_k"},
         compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++"},
         secondary_y="%", tick_rotation=45, file_type="pdf"
+    )
+
+    plot_blocked_compiler_comparison(
+        matrix_sizes=[256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072, 3328, 3584, 3840, 4096],
+        total_results=total_results, header=header,
+        include_compilers=["rocm (MI250)", "rocm (MI50)"],
+        file_name="blocked/blocked_only_A_rocm",
+        compiler_colors={"rocm (MI50)": "tab:pink", "rocm (MI250)": "tab:olive"},
+        compiler_method_names={"rocm (MI250)": "blocked_k", "rocm (MI50)": "blocked_k"},
+        compiler_titles={"rocm (MI250)": "MI250", "rocm (MI50)": "MI50"},
+        secondary_y="none", main_y="%", tick_rotation=45, file_type="pdf"
     )
 
     plot_blocked_compiler_comparison(
@@ -362,7 +422,6 @@ def plot_blocked():
         compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++"},
         secondary_y="%", tick_rotation=45, file_type="pdf"
     )
-
 
 def plot_cublas():
     header, total_results = read_files("blas/**/*.csv")
@@ -392,18 +451,22 @@ def plot_loop_order():
             'size': 8}
     plt.rc('font', **font)
 
-    compilers = {"clang": "A100", "nvc": "A100", "xlc": "V100", "rocm": "MI50"}
-    mat_sizes = {"clang": [128, 256, 512, 1024, 2048, 4096, 8192], "nvc": [128, 256, 512, 1024, 2048, 4096, 8192],
-                 "xlc": [128, 256, 512, 1024, 2048, 4096], "rocm": [128, 256, 512, 1024, 2048, 4096]}
+    gpus = {"V100": ["clang", "nvc", "xlc"], "A100": ["clang", "nvc"],  "MI250": ["rocm"]} #"MI50": list("rocm"),
+    mat_sizes = [128, 256, 512, 1024, 2048, 4096]
 
-    for compiler in compilers:
-        plot_method_comparison_line(
-            method_names=["ijk", "ikj", "jik", "jki", "kij", "kji"], matrix_sizes=mat_sizes[compiler],
-            method_titles={"ijk": "ijk", "ikj": "ikj", "jik": "jik", "jki": "jki", "kij": "kij", "kji": "kji"},
-            total_results=total_results, header=header, compiler=f"{compiler} ({compilers[compiler]})",
-            file_name=f"loop_order/{compiler}", # title=f"loop orders for {compiler} on {compilers[compiler]}",
-            main_y="gflops", secondary_y="%", file_type="pdf"
-        )
+    for gpu in gpus:
+        for compiler in gpus[gpu]:
+            compiler_name = f"{compiler} ({gpu})"
+            try:
+                os.mkdir(f"images/loop_order/{gpu}/")
+            except OSError as error:
+                pass
+            plot_method_comparison_line(
+                method_names=["ijk", "ikj", "jik", "jki", "kij", "kji"], matrix_sizes=mat_sizes,
+                method_titles={"ijk": "ijk", "ikj": "ikj", "jik": "jik", "jki": "jki", "kij": "kij", "kji": "kji"},
+                total_results=total_results, header=header, compiler=compiler_name,
+                file_name=f"loop_order/{gpu}/{compiler}", main_y="gflops", secondary_y="%", file_type="pdf"
+            )
 
 
 def main():

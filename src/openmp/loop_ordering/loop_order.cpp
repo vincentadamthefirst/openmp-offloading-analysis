@@ -31,43 +31,18 @@ double multiplyIJK(const double *A, const double *B, double *C) {
     return (end - start) * 1000.0;
 }
 
-double multiplyIJKReduction(const double *A, const double *B, double *C) {
-    double start, end;
-
-#pragma omp target data map(to:A[0:SIZE*SIZE], B[0:SIZE * SIZE]) map(tofrom:C[0:SIZE * SIZE])
-    {
-        start = omp_get_wtime();
-
-#pragma omp target teams distribute collapse(2)
-        for (int i = 0; i < SIZE; ++i) {
-
-            for (int j = 0; j < SIZE; ++j) {
-//#pragma omp parallel for reduction(+:C[0:SIZE * SIZE])
-                for (int k = 0; k < SIZE; ++k) {
-                    C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
-                }
-            }
-        }
-
-        end = omp_get_wtime();
-    }
-    return (end - start) * 1000.0;
-}
-
 double multiplyIKJ(const double *A, const double *B, double *C) {
     double start, end;
 #pragma omp target data map(to:A[0:SIZE * SIZE], B[0:SIZE *  SIZE]) map(tofrom:C[0:SIZE * SIZE])
     {
         start = omp_get_wtime();
 
-#pragma omp target teams distribute shared(A, B, C) collapse(2)
+#pragma omp target teams distribute shared(A, B, C)
         for (int i = 0; i < SIZE; i++) {
+#pragma omp parallel for
             for (int k = 0; k < SIZE; k++) {
-                int start = i * SIZE;
-                int end = start + SIZE;
-#pragma omp parallel for reduction(+:C[start:end])
                 for (int j = 0; j < SIZE; j++) {
-//#pragma omp atomic
+#pragma omp atomic
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
                 }
             }
@@ -85,7 +60,7 @@ double multiplyJIK(const double *A, const double *B, double *C) {
 
 #pragma omp target teams distribute shared(A, B, C)
         for (int j = 0; j < SIZE; ++j) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
             for (int i = 0; i < SIZE; ++i) {
                 for (int k = 0; k < SIZE; ++k) {
                     C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
@@ -105,7 +80,7 @@ double multiplyJKI(const double *A, const double *B, double *C) {
 
 #pragma omp target teams distribute shared(A, B, C)
         for (int j = 0; j < SIZE; ++j) {
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for
             for (int k = 0; k < SIZE; ++k) {
                 for (int i = 0; i < SIZE; ++i) {
 #pragma omp atomic
@@ -126,7 +101,7 @@ double multiplyKIJ(const double *A, const double *B, double *C) {
 
 #pragma omp target teams distribute shared(A, B, C)
         for (int k = 0; k < SIZE; ++k) {
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for
             for (int i = 0; i < SIZE; ++i) {
                 for (int j = 0; j < SIZE; ++j) {
 #pragma omp atomic
@@ -148,7 +123,7 @@ double multiplyKJI(const double *A, const double *B, double *C) {
 
 #pragma omp target teams distribute shared(A, B, C)
         for (int k = 0; k < SIZE; ++k) {
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for
             for (int j = 0; j < SIZE; ++j) {
                 for (int i = 0; i < SIZE; ++i) {
 #pragma omp atomic
@@ -231,14 +206,16 @@ int main(int argc, char* argv[]) {
         Host::multiplyIKJParallel(A, B, C, MATRIX_SIZE);
     }
 
+    std::cout << MATRIX_SIZE << std::endl;
+
     std::vector<Output::MatrixMultiplyRunResult> res;
     res.push_back(runAndTimeMethod(multiplyIJK, "ijk", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
 //    res.push_back(runAndTimeMethod(multiplyIJKReduction, "ijk (reduction)", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
     res.push_back(runAndTimeMethod(multiplyIKJ, "ikj", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyJIK, "jik", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyJKI, "jki", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyKIJ, "kij", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyKJI, "kji", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+    res.push_back(runAndTimeMethod(multiplyJIK, "jik", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+    res.push_back(runAndTimeMethod(multiplyJKI, "jki", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+    res.push_back(runAndTimeMethod(multiplyKIJ, "kij", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
+    res.push_back(runAndTimeMethod(multiplyKJI, "kji", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
 
     Output::writeOutput(file, csv ? Output::FileType::CSV : Output::FileType::TXT, res);
 }

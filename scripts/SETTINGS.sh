@@ -77,7 +77,7 @@ NVC_BENCHMARK_FLAGS="-DNO_MEM_DIRECTIVES"
 #
 
 # actual compiler call
-ROCM_COMPILER=/opt/rocm-5.2.0/llvm/bin/clang++
+ROCM_COMPILER=/opt/rocm-5.2.0/llvm/bin/amdclang++
 # settings to enable OpenMP (offloading) in ROCM
 ROCM_OPENMP_FLAGS="-target %HOST_TRIPLE% -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa -march=%OFFLOAD_ARCH% --offload-arch=%OFFLOAD_ARCH%"
 # flags the generally are part of the call to ROCM
