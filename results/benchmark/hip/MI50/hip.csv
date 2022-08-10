@@ -1,0 +1,2 @@
+method_name,data_type,matrixSize,tile_size,repetitions,status,exec_time_min(ms),exec_time_max(ms),exec_time_mean(ms),exec_time_median(ms),gflops_mean,gflops_median
+HIP,d,4096,0,11,1,61.480888,61.769668,61.655893,61.667738,2228.857113,2228.429009,
