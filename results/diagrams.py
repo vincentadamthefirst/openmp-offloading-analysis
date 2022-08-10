@@ -10,6 +10,7 @@ import matplotlib as mpl
 
 
 markers = ["*", ".", "x", "^", "+", "s", "v", "1", "2", "3", "4", "<", ">"]
+
 max_gflops = {"V100": 7800, "A100": 9700, "MI50": 6600, "A100t": 19500, "MI250": 45260}
 
 
@@ -77,7 +78,8 @@ def get_list_of_values(input_array, column_name):
 
 
 def plot_method_comparison_line(method_names, method_titles, matrix_sizes, total_results, header, file_name, compiler,
-                                title=None, method_colors=None, main_y="gflops", secondary_y="none", file_type="svg"):
+                                title=None, method_colors=None, main_y="gflops", secondary_y="none", file_type="svg",
+                                y_lim=None, gpu=""):
     fig, axs = plt.subplots()
     secondary_axs = None
     if secondary_y == "%":
@@ -117,7 +119,15 @@ def plot_method_comparison_line(method_names, method_titles, matrix_sizes, total
 
     axs.legend()
 
+    if y_lim is not None:
+        if main_y == "%":
+            axs.set_ylim([(y_lim[0] / max_gflops[gpu]) * 100, (y_lim[1] / max_gflops[gpu]) * 100])
+        else:
+            axs.set_ylim([y_lim[0], y_lim[1]])
+
     if secondary_y == "%":
+        if y_lim is not None:
+            secondary_axs.set_ylim([(y_lim[0] / max_gflops[gpu]) * 100, (y_lim[1] / max_gflops[gpu]) * 100])
         secondary_axs.set_ylabel("% of peak performance")
 
     if title is not None:
@@ -126,20 +136,22 @@ def plot_method_comparison_line(method_names, method_titles, matrix_sizes, total
     axs.set_xlabel("matrix size")
     axs.set_ylabel("GFLOPs" if main_y == "gflops" else "% of peak performance")
     fig.savefig("images/" + file_name + "." + file_type, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 def plot_method_comparison_bar(method_names, method_titles, matrix_size, total_results, header, file_name,
                                include_compilers, compiler_titles, title=None, compiler_colors=None, main_y="gflops",
-                               secondary_y="none", file_type="svg"):
+                               secondary_y="none", file_type="svg", y_lim=None, gpu=""):
     fig, axs = plt.subplots()
     secondary_axs = None
     if secondary_y == "%":
         secondary_axs = axs.twinx()
 
     x = np.arange(len(method_names))
+
     bar_pos = x         # initial bar positions
     bar_width = .1      # constant, set to bar width
-    bar_spacing = .01   # space between bars
+    bar_spacing = .02   # space between bars
     bar_count = 0       # to keep count of the bars displayed
     compiler_count = 0
 
@@ -156,7 +168,13 @@ def plot_method_comparison_bar(method_names, method_titles, matrix_size, total_r
         values = []
         percentages = []
         for method in method_names:
-            rows = total_results[compiler][method]
+            try:
+                rows = total_results[compiler][method]
+            except Exception as e:
+                print(f"Missing value {str(e)}, inserting 0.")
+                values.append(0)
+                percentages.append(0)
+                continue
             relevant_row = next(row for row in rows if
                                 get_element_by_name(row, header, "matrixSize") == str(matrix_size))
 
@@ -174,7 +192,7 @@ def plot_method_comparison_bar(method_names, method_titles, matrix_size, total_r
 
         if secondary_y == "%":
             # a bit hacky: add bars with the percentage values but make them invisible
-            secondary_axs.bar(bar_pos, percentages, label=compiler_name, width=bar_width, color="tab:red", alpha=0)
+            secondary_axs.bar(bar_pos, percentages, label=compiler_name, width=bar_width, color="tab:red", alpha=.1)
 
         bar_pos = [x + bar_width + bar_spacing for x in bar_pos]
         bar_count += 1
@@ -182,7 +200,15 @@ def plot_method_comparison_bar(method_names, method_titles, matrix_size, total_r
 
     axs.legend()
 
+    if y_lim is not None:
+        if main_y == "%":
+            axs.set_ylim([(y_lim[0] / max_gflops[gpu]) * 100, (y_lim[1] / max_gflops[gpu]) * 100])
+        else:
+            axs.set_ylim([y_lim[0], y_lim[1]])
+
     if secondary_y == "%":
+        if y_lim is not None:
+            secondary_axs.set_ylim([(y_lim[0] / max_gflops[gpu]) * 100, (y_lim[1] / max_gflops[gpu]) * 100])
         secondary_axs.set_ylabel("% of peak performance")
 
     if title is not None:
@@ -192,6 +218,8 @@ def plot_method_comparison_bar(method_names, method_titles, matrix_size, total_r
                    method_titles if method_titles is not None else method_names)
     axs.set_ylabel("GFLOPs" if main_y == "gflops" else "% of peak performance")
     fig.savefig("images/" + file_name + "." + file_type, dpi=300, bbox_inches='tight')
+    # fig.show()
+    plt.close()
 
 
 def plot_blocked_compiler_comparison(matrix_sizes, total_results, header, file_name, include_compilers,
@@ -201,6 +229,8 @@ def plot_blocked_compiler_comparison(matrix_sizes, total_results, header, file_n
     secondary_axs = None
     if secondary_y == "%":
         secondary_axs = axs.twinx()
+
+    compiler_count = 0
 
     for compiler_idx, compiler in enumerate(total_results):
         # build compiler name
@@ -222,15 +252,17 @@ def plot_blocked_compiler_comparison(matrix_sizes, total_results, header, file_n
 
         if compiler_colors is not None:
             axs.plot(np.array(matrix_sizes).astype("str"), percentages if main_y == "%" else values,
-                     marker=markers[compiler_idx], label=compiler_titles[name], color=compiler_colors[name])
+                     marker=markers[compiler_count], label=compiler_titles[name], color=compiler_colors[name])
         else:
             axs.plot(np.array(matrix_sizes).astype("str"), percentages if main_y == "%" else values,
-                     marker=markers[compiler_idx], label=compiler_titles[name])
+                     marker=markers[compiler_count], label=compiler_titles[name])
 
         if secondary_y == "%":
             # a bit hacky: add bars with the percentage values but make them invisible
             secondary_axs.plot(np.array(matrix_sizes).astype("str"), percentages, label=compiler_titles[name],
                                color="tab:red", alpha=0)
+
+        compiler_count += 1
 
     axs.legend()
 
@@ -246,82 +278,113 @@ def plot_blocked_compiler_comparison(matrix_sizes, total_results, header, file_n
     axs.set_xlabel("matrix size")
     axs.set_ylabel("GFLOPs" if main_y == "gflops" else "% of peak performance")
     fig.savefig("images/" + file_name + "." + file_type, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def plot_best_comparison():
+
+    header, benchmark_results = read_files("benchmark/**/*.csv")
+
+    compilers = {"A100": ["clang (A100)", "nvc (A100)", "cuda (A100)" ]}
+    matrix_size = "4096"
+
+    values = {}
+
+    for compiler in benchmark_results:
+        name, gpu = build_compiler_name(compiler)
+        if gpu == "A100t":
+            gpu = "A100"
+
+        if gpu not in values:
+            values[gpu] = []
+
+        best_value = -9999
+        best_method = ""
+
+        for method in benchmark_results[compiler]:
+            relevant_row = next(row for row in benchmark_results[compiler][method]
+                                if get_element_by_name(row, header, "matrixSize") == str(matrix_size))
+            med_gflops = float(get_element_by_name(relevant_row, header, "gflops_median"))
+            if med_gflops > best_value:
+                best_value = med_gflops
+                best_method = method
+
+        values[gpu].append((compiler, best_method, best_value))
+
+    for gpu in values:
 
 
 def plot_benchmark():
     header, total_results = read_files("benchmark/**/*.csv")
 
     # generate plots for each method
-    mpl.rcParams["figure.figsize"] = [6, 3.4]
+    mpl.rcParams["figure.figsize"] = [4, 3.4]
     font = {'family': 'normal',
             'size': 8}
     plt.rc('font', **font)
 
     # Simple methods, split by GPU
-    plot_method_comparison_bar(
-        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
-        method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
-                       "ijk (reduction,\nSPMD)"],
-        matrix_size=4096, total_results=total_results, header=header,
-        file_name="method_comparisons/simple_methods_V100", include_compilers=["clang (V100)", "nvc (V100)",
-                                                                               "xlc (V100)"],
-        compiler_titles={"clang (V100)": "clang++", "nvc (V100)": "nvc++", "xlc (V100)": "xlc++"},
-        compiler_colors={"clang (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc (V100)": "tab:orange"},
-        main_y="gflops", secondary_y="%", file_type="pdf"
-    )
-
-    plot_method_comparison_bar(
-        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
-        method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
-                       "ijk (reduction,\nSPMD)"],
-        matrix_size=4096, total_results=total_results, header=header,
-        file_name="method_comparisons/simple_methods_A100", include_compilers=["clang (A100)", "nvc (A100)"],
-        compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++", "xlc (A100)": "xlc++"},
-        compiler_colors={"clang (A100)": "tab:blue", "nvc (A100)": "tab:green", "xlc (A100)": "tab:orange"},
-        main_y="gflops", secondary_y="%", file_type="pdf"
-    )
-
-    plot_method_comparison_bar(
-        method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
-        method_titles=["ijk", "ijk\n(collapsed i & j)",  "ijk (loop)", "ijk\n(reduction)",
-                       "ijk (reduction,\nparallel region for SPMD)"],
-        matrix_size=4096, total_results=total_results, header=header,
-        file_name="method_comparisons/simple_methods_rocm",
-        include_compilers=["rocm* (MI50)", "rocm* (MI250)"],
-        compiler_titles={"rocm* (MI50)": "rocm (MI50)", "rocm* (MI250)": "rocm (MI250)"},
-        compiler_colors={"rocm* (MI50)": "tab:pink", "rocm* (MI250)": "tab:cyan"},
-        main_y="gflops", secondary_y="%", file_type="pdf"
-    )
+    # plot_method_comparison_bar(
+    #     method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+    #     method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
+    #                    "ijk (reduction,\nSPMD)"],
+    #     matrix_size=4096, total_results=total_results, header=header, gpu="V100",
+    #     file_name="method_comparisons/simple_methods_V100", include_compilers=["clang (V100)", "nvc (V100)",
+    #                                                                            "xlc (V100)"],
+    #     compiler_titles={"clang (V100)": "clang++", "nvc (V100)": "nvc++", "xlc (V100)": "xlc++"},
+    #     compiler_colors={"clang (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc (V100)": "tab:orange"},
+    #     main_y="gflops", secondary_y="%", file_type="pdf"
+    # )
+    #
+    # plot_method_comparison_bar(
+    #     method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+    #     method_titles=["ijk", "ijk\n(collapsed i & j)", "ijk (loop)", "ijk\n(reduction)",
+    #                    "ijk (reduction,\nSPMD)"],
+    #     matrix_size=4096, total_results=total_results, header=header, gpu="A100",
+    #     file_name="method_comparisons/simple_methods_A100", include_compilers=["clang (A100)", "nvc (A100)"],
+    #     compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++", "xlc (A100)": "xlc++"},
+    #     compiler_colors={"clang (A100)": "tab:blue", "nvc (A100)": "tab:green", "xlc (A100)": "tab:orange"},
+    #     main_y="gflops", secondary_y="%", file_type="pdf"
+    # )
+    #
+    # plot_method_comparison_bar(
+    #     method_names=["ijk", "ijk_collapsed", "ijk_loop", "ijk_reduction", "ijk_collapsed_spmd"],
+    #     method_titles=["ijk", "ijk\n(collapsed i & j)",  "ijk (loop)", "ijk\n(reduction)",
+    #                    "ijk (reduction,\nparallel region for SPMD)"],
+    #     matrix_size=4096, total_results=total_results, header=header, gpu="MI50",
+    #     file_name="method_comparisons/simple_methods_rocm",
+    #     include_compilers=["rocm* (MI50)", "rocm* (MI250)"],
+    #     compiler_titles={"rocm* (MI50)": "rocm (MI50)", "rocm* (MI250)": "rocm (MI250)"},
+    #     compiler_colors={"rocm* (MI50)": "tab:pink", "rocm* (MI250)": "tab:cyan"},
+    #     main_y="gflops", secondary_y="%", file_type="pdf"
+    # )
 
     # Blocked methods, split by GPU
     plot_method_comparison_bar(
-        method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
-        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
-                       "blocked\n(A + thread limit=1024)"],
-        matrix_size=4096, total_results=total_results, header=header,
-        file_name="method_comparisons/blocked_methods_A100", # title="blocked methods on A100 (matrix size = 4096)",
+        method_names=["blocked_shmem", "blocked_k", "blocked_k_512"],
+        method_titles=["blocked (A & B)", "blocked (A),\nblock size=1024", "blocked (A),\nblock size=512"],
+        matrix_size=4096, total_results=total_results, header=header, gpu="A100",
+        file_name="method_comparisons/blocked_methods_A100",
         include_compilers=["clang* (A100)", "nvc (A100)"],
-        compiler_titles={"clang* (A100)": "clang++", "nvc (A100)": "nvc++", "xlc* (A100)": "xlc++"},
+        compiler_titles={"clang* (A100)": "clang++", "nvc (A100)": "nvc++"},
         compiler_colors={"clang* (A100)": "tab:blue", "nvc (A100)": "tab:green"},
-        main_y="gflops", secondary_y="%", file_type="pdf"
+        main_y="gflops", secondary_y="%", file_type="pdf", y_lim=[0, 1200]
     )
 
     plot_method_comparison_bar(
-        method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
-        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
-                       "blocked\n(A + thread limit=1024)"],
-        matrix_size=4096, total_results=total_results, header=header,
-        file_name="method_comparisons/blocked_methods_V100", # title="blocked methods on V100 (matrix size = 4096)",
+        method_names=["blocked_shmem", "blocked_k", "blocked_k_512"],
+        method_titles=["blocked (A & B)", "blocked (A),\nblock size=1024", "blocked (A),\nblock size=512"],
+        matrix_size=4096, total_results=total_results, header=header, gpu="V100",
+        file_name="method_comparisons/blocked_methods_V100",
         include_compilers=["clang* (V100)", "nvc (V100)", "xlc* (V100)"],
         compiler_titles={"clang* (V100)": "clang++", "nvc (V100)": "nvc++", "xlc* (V100)": "xlc++"},
         compiler_colors={"clang* (V100)": "tab:blue", "nvc (V100)": "tab:green", "xlc* (V100)": "tab:orange"},
-        main_y="gflops", secondary_y="%", file_type="pdf"
+        main_y="gflops", secondary_y="%", file_type="pdf", y_lim=[0, 1400]
     )
 
     plot_method_comparison_bar(
-        method_names=["blocked_shmem", "blocked_shmem_mem_directives", "blocked_k", "blocked_k_thread_limit"],
-        method_titles=["blocked (A & B)", "blocked\n(mem. allocators)", "blocked (A)",
-                       "blocked\n(A + thread limit=1024)"],
+        method_names=["blocked_shmem", "blocked_k", "blocked_k_512"],
+        method_titles=["blocked (A & B)", "blocked (A),\nblock size=1024", "blocked (A),\nblock size=512"],
         matrix_size=4096, total_results=total_results, header=header,
         file_name="method_comparisons/blocked_methods_rocm",
         include_compilers=["rocm* (MI50)", "rocm* (MI250)"],
@@ -333,24 +396,23 @@ def plot_benchmark():
     # Comparison CUDA & other compilers
     plot_blocked_compiler_comparison(
         matrix_sizes=[128, 256, 512, 1024, 2048, 4096], total_results=total_results, header=header,
-        # title="blocked (A & B in shared memory) on A100 (matrix size = 4096)",
         file_name="method_comparisons/cuda_comparison_A100",
         include_compilers=["clang (A100)", "nvc (A100)", "cuda (A100)"],
         compiler_colors={"clang (A100)": "tab:blue", "nvc (A100)": "tab:green", "cuda (A100)": "tab:cyan"},
-        compiler_method_names={"clang (A100)": "blocked_shmem", "nvc (A100)": "blocked_shmem", "cuda (A100)": "CUDA"},
+        compiler_method_names={"clang (A100)": "blocked_shmem", "nvc (A100)": "blocked_shmem",
+                               "cuda (A100)": "blocked_shmem"},
         compiler_titles={"clang (A100)": "clang++", "nvc (A100)": "nvc++", "cuda (A100)": "nvcc"},
         secondary_y="%", file_type="pdf"
     )
 
     plot_blocked_compiler_comparison(
         matrix_sizes=[128, 256, 512, 1024, 2048, 4096], total_results=total_results, header=header,
-        # title="blocked (A & B in shared memory) on V100 (matrix size = 4096)",
         file_name="method_comparisons/cuda_comparison_V100",
         include_compilers=["clang (V100)", "nvc (V100)", "xlc (V100)", "cuda (V100)"],
         compiler_colors={"clang (V100)": "tab:blue", "nvc (V100)": "tab:green", "cuda (V100)": "tab:cyan",
                          "xlc (V100)": "tab:orange"},
-        compiler_method_names={"clang (V100)": "blocked_shmem", "nvc (V100)": "blocked_shmem", "cuda (V100)": "CUDA",
-                               "xlc (V100)": "blocked_shmem"},
+        compiler_method_names={"clang (V100)": "blocked_shmem", "nvc (V100)": "blocked_shmem",
+                               "cuda (V100)": "blocked_shmem", "xlc (V100)": "blocked_shmem"},
         compiler_titles={"clang (V100)": "clang++", "nvc (V100)": "nvc++", "cuda (V100)": "nvcc",
                          "xlc (V100)": "xlc++"},
         secondary_y="%", file_type="pdf"
@@ -423,8 +485,9 @@ def plot_blocked():
         secondary_y="%", tick_rotation=45, file_type="pdf"
     )
 
+
 def plot_cublas():
-    header, total_results = read_files("blas/**/*.csv")
+    header, total_results = read_files("benchmark/**/*.csv")
 
     mpl.rcParams["figure.figsize"] = [6, 3.4]
     font = {'family': 'normal',
@@ -451,7 +514,7 @@ def plot_loop_order():
             'size': 8}
     plt.rc('font', **font)
 
-    gpus = {"V100": ["clang", "nvc", "xlc"], "A100": ["clang", "nvc"],  "MI250": ["rocm"]} #"MI50": list("rocm"),
+    gpus = {"V100": ["clang", "nvc", "xlc"], "A100": ["clang", "nvc"], "MI50": ["rocm"],  "MI250": ["rocm"]}
     mat_sizes = [128, 256, 512, 1024, 2048, 4096]
 
     for gpu in gpus:
@@ -465,7 +528,8 @@ def plot_loop_order():
                 method_names=["ijk", "ikj", "jik", "jki", "kij", "kji"], matrix_sizes=mat_sizes,
                 method_titles={"ijk": "ijk", "ikj": "ikj", "jik": "jik", "jki": "jki", "kij": "kij", "kji": "kji"},
                 total_results=total_results, header=header, compiler=compiler_name,
-                file_name=f"loop_order/{gpu}/{compiler}", main_y="gflops", secondary_y="%", file_type="pdf"
+                file_name=f"loop_order/{gpu}/{compiler}", main_y="gflops", secondary_y="%", file_type="pdf",
+                y_lim=[0, 400], gpu=gpu
             )
 
 

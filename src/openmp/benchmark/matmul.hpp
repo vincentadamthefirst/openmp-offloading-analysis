@@ -75,10 +75,12 @@ public:
         std::cout << "verbose:        " << (verbose ? "ON" : "OFF") << std::endl;
         std::cout << "matrix size:    " << MATRIX_SIZE << std::endl;
         std::cout << "repetitions:    " << repetitions << std::endl;
+        std::cout << "warmup:         " << warmup << std::endl;
         std::cout << "lower value:    " << VALUE_RANGE_LOWER << std::endl;
         std::cout << "upper value:    " << VALUE_RANGE_UPPER << std::endl;
         std::cout << "data type:      " << typeid(DATA_TYPE).name() << std::endl;
         std::cout << "tile size:      " << TILE_SIZE << std::endl;
+        std::cout << "k block size:   " << K_BLOCK_SIZE << std::endl;
         std::cout << "tile axis size: " << TILE_AXIS_SIZE << std::endl;
         std::cout << "check matrix:   " << (checkMatrix ? "PRESENT" : "MISSING") << std::endl;
         std::cout << std::endl;

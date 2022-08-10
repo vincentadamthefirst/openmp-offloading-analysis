@@ -1,17 +1,18 @@
 export PATH=/opt/nvidia/hpc_sdk/Linux_ppc64le/22.5/compilers/bin:/opt/nvidia/hpc_sdk/Linux_x86_64/22.5/compilers/bin:/.local/bin:/opt/bin:/opt/rocm-5.2.0/llvm/bin:$PATH
 
 # Set what exactly should be compiled
-#TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
-TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
+TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/benchmark/benchmark.cpp"
+#TO_COMPILE="${BASH_SOURCE%/*}/../src/openmp/loop_ordering/loop_order.cpp"
 #TO_COMPILE="${BASH_SOURCE%/*}/../src/cuda/main_cuda.cu"
 #TO_COMPILE="${BASH_SOURCE%/*}/../src/hip/main_hip.cpp"
 # Base Name of the output
 #OUT_BASE="benchmark_"
 #OUT_BASE="blocked_benchmark_"
-OUT_BASE="loop_order_"
+#OUT_BASE="loop_order_"
+OUT_BASE="blocked_a_512_"
 
 #SIZES=("128" "256" "512" "1024" "2048" "4096" "8192")
-SIZES=("128" "256" "512" "1024" "2048" "4096" "8192")
+SIZES=("4096")
 #SIZES=()
 #for i in {256..4096..256}
 #do
@@ -20,7 +21,8 @@ SIZES=("128" "256" "512" "1024" "2048" "4096" "8192")
 
 #METHODS="all"
 #METHODS="blocked_shmem blocked_k blocked_k_thread_limit"
-METHODS=""
+#METHODS=""
+METHODS="blocked_k"
 REPETITIONS=11
 WARMUP=5
 
@@ -78,7 +80,7 @@ for SETTINGS in $SETTINGS_FOLDER; do
     echo "" > $SINGULARITY_FILE
   fi
 
-  ADD_FLAGS=""
+  ADD_FLAGS="-acf=-DK_BLOCK_SIZE=512 "
   for FLAG in "${ADDITIONAL_FLAGS[@]}"; do
     ADD_FLAGS+="-acf=${FLAG} "
   done
