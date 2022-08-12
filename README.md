@@ -1,6 +1,6 @@
 # OpenMP Offloading Analysis
 
-Source code for OpenMP, CUDA, HIP and BLAS matrix multiplication benchmarks.
+Source code and results for OpenMP, CUDA, HIP and BLAS matrix multiplication benchmarks.
 
 ## Note
 
