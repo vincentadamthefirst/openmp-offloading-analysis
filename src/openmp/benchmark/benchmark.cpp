@@ -11,6 +11,7 @@ void configureParser(cli::Parser& parser) {
                                                   "The methods to run (comma separated list). To see a list "
                                                   "of all methods use '--print_methods'.");
     parser.set_optional<bool>("p", "print_methods", false, "Prints all available methods.");
+    parser.set_optional<std::string>("s", "suffix", "", "Adds a suffix to method output names.");
 }
 
 int main(int argc, char* argv[]) {
@@ -60,6 +61,7 @@ int main(int argc, char* argv[]) {
     // get flags & smaller values
     auto verbose = parser.get<bool>("v");
     auto csv = parser.get<std::string>("ft") == "csv";
+    auto suffix = parser.get<std::string>("s");
     auto repetitions = parser.get<int>("r");
     auto warmup = parser.get<int>("w");
     auto compare = parser.get<bool>("c");
@@ -68,9 +70,7 @@ int main(int argc, char* argv[]) {
 
     MatrixMultiplication matrixMultiplication(file, verbose, csv);
     matrixMultiplication.enableCheck(compare).enableRepetitions(repetitions).enableWarmup(warmup);
-
-    // FIXME remove after debugging
-    matrixMultiplication.printInfo();
+    matrixMultiplication.withSuffix(suffix);
 
     size_t largestMethodNameLength = 0;
     for (const auto& pair : methodNamesMappingReversed) {

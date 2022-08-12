@@ -27,22 +27,6 @@ CLANG_DEBUG_FLAGS="-g"
 CLANG_BENCHMARK_FLAGS="-DNO_LOOP_DIRECTIVES"
 
 #
-# GCC compiler configuration
-# TODO fill out
-#
-
-# actual compiler call
-GCC_COMPILER=g++
-# settings to enable OpenMP (offloading) in GCC
-GCC_OPENMP_FLAGS=""
-# flags the generally are part of the call to GCC
-GCC_DEFAULT_FLAGS=""
-# flags that should be used in case a debug compile is issued
-GCC_DEBUG_FLAGS=""
-# benchmark compilation specific flags
-GCC_BENCHMARK_FLAGS=""
-
-#
 # XLC compiler configuration
 #
 
@@ -77,7 +61,7 @@ NVC_BENCHMARK_FLAGS="-DNO_MEM_DIRECTIVES"
 #
 
 # actual compiler call
-ROCM_COMPILER=/opt/rocm-5.2.0/llvm/bin/amdclang++
+ROCM_COMPILER=amdclang++
 # settings to enable OpenMP (offloading) in ROCM
 ROCM_OPENMP_FLAGS="-target %HOST_TRIPLE% -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa -march=%OFFLOAD_ARCH% --offload-arch=%OFFLOAD_ARCH%"
 # flags the generally are part of the call to ROCM
@@ -109,7 +93,7 @@ AOMP_BENCHMARK_FLAGS="-DNO_LOOP_DIRECTIVES"
 # actual compiler call
 CUDA_COMPILER=nvcc
 # flags the generally are part of the call to CUDA
-CUDA_DEFAULT_FLAGS="-lcurand -arch=%OFFLOAD_ARCH%"
+CUDA_DEFAULT_FLAGS="-fast -lcurand -arch=%OFFLOAD_ARCH%"
 # flags that should be used in case a debug compile is issued
 CUDA_DEBUG_FLAGS="-g -lcurand -arch=%OFFLOAD_ARCH%"
 # benchmark compilation specific flags
@@ -122,7 +106,7 @@ CUDA_BENCHMARK_FLAGS=""
 # actual compiler call
 HIP_COMPILER=hipcc
 # flags the generally are part of the call to HIP
-HIP_DEFAULT_FLAGS="-lhiprand"
+HIP_DEFAULT_FLAGS="-Ofast -lhiprand"
 # flags that should be used in case a debug compile is issued
 HIP_DEBUG_FLAGS="-g"
 # benchmark compilation specific flags

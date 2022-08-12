@@ -41,10 +41,8 @@ double MatMulCUBLAS<float>(cublasHandle_t& handle, const float *A, const float *
     const float beta = 0;
 
     cudaDeviceSynchronize();
-    //cudaThreadSynchronize();
     auto t1 = std::chrono::high_resolution_clock::now();
     cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha, A, size, B, size, &beta, C, size);
-    //cudaThreadSynchronize();
     cudaDeviceSynchronize();
     auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -53,12 +51,10 @@ double MatMulCUBLAS<float>(cublasHandle_t& handle, const float *A, const float *
 
 template<>
 double MatMulCUBLAS<double>(cublasHandle_t& handle, const double *A, const double *B, double *C, const int size) {
-    //double alpha = 1;
     double alpha = 1;
     const double beta = 0;
 
     cudaDeviceSynchronize();
-    //cudaThreadSynchronize();
     auto t1 = std::chrono::high_resolution_clock::now();
     cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, size, size, size, &alpha, A, size, B, size, &beta, C, size);
     cudaDeviceSynchronize();
@@ -144,7 +140,7 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
         auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), matrixSize);
 
         runResults.push_back({"cuBLAS", "1",
-                              warmup, repetitions, matrixSize,
+                              warmup, repetitions, matrixSize, 0,
                               std::get<1>(medianExecTimeMs), std::get<2>(medianExecTimeMs),
                               meanExecTimeMs, std::get<0>(medianExecTimeMs), meanGflops, medianGflops});
 
@@ -170,6 +166,9 @@ int main(int argc, char* argv[]) {
     cli::Parser parser(argc, argv);
     configureParser(parser);
     parser.run_and_exit_if_error();
+
+    std::cout << "CUBLAS Version: " << CUBLAS_VER_MAJOR << "." << CUBLAS_VER_MINOR << "." <<
+                 CUBLAS_VER_BUILD << std::endl;
 
     auto csv = parser.get<std::string>("ft") == "csv";
     auto precision = parser.get<std::string>("p");

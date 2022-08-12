@@ -2,13 +2,13 @@
 ACCOUNT="p_sp_adam"
 NUM_CORES="8"
 MEM_PER_CORE="5000"
-RUN_NAME="cuda_V100"
+GPU="V100"
 RESERVATION=""
 TIME="04:00:00"
 PARTITION="ml"
 SLURM_ADDITIONAL=("--gres=gpu:1")
 # benchmark settings
-COMPILERS=("cuda")
+COMPILER="cuda"
 ADDITIONAL_FLAGS=()
 TARGET_TRIPLE=""
 TARGET_ARCH="sm_70"

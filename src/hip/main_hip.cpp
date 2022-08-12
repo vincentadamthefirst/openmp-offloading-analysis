@@ -134,6 +134,7 @@ int main(int argc, char* argv[]) {
     result.warmup = warmup;
     result.repetitions = repetitions;
     result.matrixSize = MATRIX_SIZE;
+    result.blockSize = 0;
     result.minExecutionTimeMs = std::get<1>(medianExecTimeMs);
     result.maxExecutionTimeMs = std::get<2>(medianExecTimeMs);
     result.meanExecutionTimeMs = meanExecTimeMs;

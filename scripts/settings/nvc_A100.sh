@@ -2,13 +2,13 @@
 ACCOUNT="p_sp_adam"
 NUM_CORES="8"
 MEM_PER_CORE="5000"
-RUN_NAME="nvc_A100"
+GPU="A100"
 RESERVATION=""
 TIME="04:00:00"
 PARTITION="alpha"
 SLURM_ADDITIONAL=("--gres=gpu:1")
 # benchmark settings
-COMPILERS=("nvc")
+COMPILER="nvc"
 ADDITIONAL_FLAGS=()
 TARGET_TRIPLE="nvptx64-nvidia-cuda"
 TARGET_ARCH="cc80"

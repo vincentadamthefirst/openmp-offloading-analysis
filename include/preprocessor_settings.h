@@ -25,24 +25,19 @@
 #endif
 
 /*
- * The tile size for tiled matrix multiplication. This is a compile-time definition due to shared memory allocation.
- * This value needs to evenly divide into MATRIX_SIZE as there is no routine for checking the bounds.
+ * The tile size for tiled matrix multiplication (A & B).
+ * This is a compile-time definition due to shared memory allocation.
  */
 #ifndef TILE_SIZE
 #define TILE_SIZE 16
 #endif
 
 /*
- * The block size to use for the K-shmem method.
- */
-#ifndef K_BLOCK_SIZE
-#define K_BLOCK_SIZE 1024
-#endif
-
-/*
  * The amount of tiles per axis that can be fitted into the matrix. This field is not user-defined.
  */
+#ifndef TILE_AXIS_SIZE
 #define TILE_AXIS_SIZE (MATRIX_SIZE / TILE_SIZE)
+#endif
 
 /*
  * The data type that should be used for the matrices.
@@ -62,11 +57,23 @@
 #define VALUE_RANGE_UPPER 1
 #endif
 
+#ifndef A_THREAD_LIMIT
+#define A_THREAD_LIMIT -1
+#endif
+
+#ifndef A_TEAMS
+#define A_TEAMS -1
+#endif
+
+#ifndef A_BLOCK_SIZE
+#define A_BLOCK_SIZE 1024
+#endif
+
 /*
  * Should the compiler defaults for num_teams and num_threads be overwritten
  */
-#ifndef OVERWRITE_DEFAULT_NUMS
-#define OVERWRITE_DEFAULT_NUMS false
+#ifndef OVERWRITE_THREAD_LIMIT
+#define OVERWRITE_THREAD_LIMIT false
 #endif
 
 // shortcuts

@@ -154,7 +154,7 @@ Output::MatrixMultiplyRunResult runAndTimeMethod(double (*functionPtr)(const dou
             if (!cmpResult) {
                 Helper::IO::printProgress((double) (repetition + 1) / (repetitions + warmup),
                                           "(" + name + " ==ABORTED== )", true);
-                return {name, "0", repetitions, warmup, 0, 0, 0, 0, 0, 0};
+                return {name, "0", repetitions, warmup, 0, 0, 0, 0, 0, 0, 0};
             }
         }
 
@@ -179,7 +179,7 @@ Output::MatrixMultiplyRunResult runAndTimeMethod(double (*functionPtr)(const dou
 
     free(C);
 
-    return {name, "1", repetitions, warmup, MATRIX_SIZE, std::get<2>(median), std::get<1>(median), mean,
+    return {name, "1", repetitions, warmup, MATRIX_SIZE, 0, std::get<2>(median), std::get<1>(median), mean,
             std::get<0>(median), mean_gflops, median_gflops};
 }
 
@@ -210,7 +210,6 @@ int main(int argc, char* argv[]) {
 
     std::vector<Output::MatrixMultiplyRunResult> res;
     res.push_back(runAndTimeMethod(multiplyIJK, "ijk", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
-//    res.push_back(runAndTimeMethod(multiplyIJKReduction, "ijk (reduction)", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
     res.push_back(runAndTimeMethod(multiplyIKJ, "ikj", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
     res.push_back(runAndTimeMethod(multiplyJIK, "jik", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));
     res.push_back(runAndTimeMethod(multiplyJKI, "jki", verbose, A, B, (uint32_t) repetitions, (uint32_t) warmup, C));

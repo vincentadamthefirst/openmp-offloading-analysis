@@ -18,6 +18,7 @@ namespace Output {
         uint32_t warmup;
         uint32_t repetitions;
         uint32_t matrixSize;
+        uint32_t blockSize;
 
         double minExecutionTimeMs;
         double maxExecutionTimeMs;
@@ -34,7 +35,7 @@ namespace Output {
         CSV
     };
 
-    inline void writeCSV(std::string path, std::vector<MatrixMultiplyRunResult> results) {
+    void writeCSV(std::string path, std::vector<MatrixMultiplyRunResult> results, std::string suffix) {
         std::ofstream fileStream;
         fileStream.open(path, std::ios_base::app);
 
@@ -50,11 +51,10 @@ namespace Output {
         inFileStream.close();
 
         for (const auto& runResult : results) {
-            fileStream << runResult.method << ",";
+            fileStream << runResult.method << suffix << ",";
             fileStream << typeid(DATA_TYPE).name() << ",";
             fileStream << runResult.matrixSize << ",";
-            fileStream << ((runResult.method.find("block") != std::string::npos) ? std::to_string(TILE_SIZE) : "0")
-                       << ",";
+            fileStream << runResult.blockSize << ",";
             fileStream << runResult.repetitions << ",";
             fileStream << runResult.status << ",";
             fileStream << std::to_string(runResult.minExecutionTimeMs) << ",";
@@ -68,7 +68,7 @@ namespace Output {
         fileStream.close();
     }
 
-    inline void writeTXT(std::string path, std::vector<MatrixMultiplyRunResult> results, std::string time) {
+    void writeTXT(std::string path, std::vector<MatrixMultiplyRunResult> results, std::string time, std::string suffix) {
         std::ofstream fileStream;
         fileStream.open(path, std::ios_base::app);
 
@@ -85,7 +85,10 @@ namespace Output {
 
         // find the width of the first column
         for (const auto &runResult : results) {
-            columnWidths[0] = std::max(columnWidths[0], runResult.method.length());
+            std::string tmp;
+            tmp += runResult.method;
+            tmp += suffix;
+            columnWidths[0] = std::max(columnWidths[0], tmp.length());
             columnWidths[1] = std::max(columnWidths[1], runResult.status.length());
         }
 
@@ -97,7 +100,7 @@ namespace Output {
 
         // write the actual table structure
         for (const auto &runResult : results) {
-            fileStream << Helper::IO::padLeft(runResult.method, columnWidths[0]) << " ";
+            fileStream << Helper::IO::padLeft(runResult.method + suffix, columnWidths[0]) << " ";
             fileStream << Helper::IO::padLeft(runResult.status, columnWidths[1]) << " ";
             fileStream << Helper::IO::padLeft(std::to_string(runResult.minExecutionTimeMs), columnWidths[2]) << " ";
             fileStream << Helper::IO::padLeft(std::to_string(runResult.maxExecutionTimeMs), columnWidths[3]) << " ";
@@ -112,7 +115,7 @@ namespace Output {
         fileStream.close();
     }
 
-    void writeOutput(std::string path, FileType ft, std::vector<MatrixMultiplyRunResult> results) {
+    void writeOutput(std::string path, FileType ft, std::vector<MatrixMultiplyRunResult> results, std::string suffix="") {
         if (path == "NO_OUTPUT_FILE")
             return;
 
@@ -139,7 +142,7 @@ namespace Output {
             path = newName;
         }
 
-        ft == CSV ? writeCSV(path, results) : writeTXT(path, results, timeString);
+        ft == CSV ? writeCSV(path, results, suffix) : writeTXT(path, results, timeString, suffix);
     }
 }
 

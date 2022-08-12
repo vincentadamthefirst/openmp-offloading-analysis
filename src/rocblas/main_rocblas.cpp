@@ -119,7 +119,7 @@ void run(std::string path, bool isCsv, bool verbose, uint32_t repetitions, uint3
         auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), matrixSize);
 
         runResults.push_back({"rocBLAS", "1",
-                              warmup, repetitions, matrixSize,
+                              warmup, repetitions, matrixSize, 0,
                               std::get<1>(medianExecTimeMs), std::get<2>(medianExecTimeMs),
                               meanExecTimeMs, std::get<0>(medianExecTimeMs), meanGflops, medianGflops});
 
@@ -144,6 +144,9 @@ int main(int argc, char* argv[]) {
     cli::Parser parser(argc, argv);
     configureParser(parser);
     parser.run_and_exit_if_error();
+
+    std::cout << "ROCBLAS Version: " << ROCBLAS_VERSION_MAJOR << "." << ROCBLAS_VERSION_MINOR << "." <<
+                 ROCBLAS_VERSION_PATCH << std::endl;
 
     auto csv = parser.get<std::string>("ft") == "csv";
     auto precision = parser.get<std::string>("p");

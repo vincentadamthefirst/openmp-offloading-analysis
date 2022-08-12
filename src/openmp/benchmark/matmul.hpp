@@ -44,6 +44,9 @@ public:
         return *this;
     }
 
+    /**
+     * Sets and enables warmup iterations.
+     */
     MatrixMultiplication& enableWarmup(int w) {
         warmup = w < 0 ? 0 : w;
         return *this;
@@ -69,6 +72,14 @@ public:
         return *this;
     }
 
+    /**
+     * Sets the suffix for method names.
+     */
+    MatrixMultiplication& withSuffix(std::string s) {
+        suffix = "_" + s;
+        return *this;
+    }
+
     /// Debug method. Prints the settings for this matrix multiplication.
     void printInfo() {
         std::cout << "file path:      " << filename << std::endl;
@@ -80,7 +91,6 @@ public:
         std::cout << "upper value:    " << VALUE_RANGE_UPPER << std::endl;
         std::cout << "data type:      " << typeid(DATA_TYPE).name() << std::endl;
         std::cout << "tile size:      " << TILE_SIZE << std::endl;
-        std::cout << "k block size:   " << K_BLOCK_SIZE << std::endl;
         std::cout << "tile axis size: " << TILE_AXIS_SIZE << std::endl;
         std::cout << "check matrix:   " << (checkMatrix ? "PRESENT" : "MISSING") << std::endl;
         std::cout << std::endl;
@@ -98,9 +108,7 @@ public:
      */
     void writeFile();
 
-
 private:
-
     /**
      * Performs the benchmark for a method. Performs the repetitions and checks (if set).
      * @param functionPtr the function to call for that method
@@ -129,6 +137,7 @@ private:
 
     std::vector<Output::MatrixMultiplyRunResult> runResults;
     std::string timeString;         // for TXT output generation
+    std::string suffix;
 
     DT* A = nullptr;
     DT* B = nullptr;

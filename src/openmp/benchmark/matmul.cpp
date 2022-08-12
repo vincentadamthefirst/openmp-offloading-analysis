@@ -49,8 +49,9 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
         auto meanGflops = Helper::Math::msToGFLOPs(meanExecTimeMs, MATRIX_SIZE);
         auto medianGflops = Helper::Math::msToGFLOPs(std::get<0>(medianExecTimeMs), MATRIX_SIZE);
 
+        uint32_t blockSize = method == Method::BLOCKED_A ? A_BLOCK_SIZE : TILE_SIZE;
         runResults.push_back({methodNamesMapping[method], "1",
-                              warmup, repetitions, MATRIX_SIZE,
+                              warmup, repetitions, MATRIX_SIZE, blockSize,
                               std::get<1>(medianExecTimeMs), std::get<2>(medianExecTimeMs),
                               meanExecTimeMs, std::get<0>(medianExecTimeMs), meanGflops, medianGflops});
 
@@ -59,7 +60,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
                       << " GFLOP/s) & MED=" << std::get<0>(medianExecTimeMs) << "ms, (" << medianGflops << " GFLOP/s)"
                       << std::endl << std::endl;
     } else {
-        runResults.push_back({methodNamesMapping[method], "0", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
+        runResults.push_back({methodNamesMapping[method], "0", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0, 0});
     }
 
     free(C);
@@ -68,36 +69,7 @@ void MatrixMultiplication::runMethod(double (*functionPtr)(const DT*, const DT*,
 void MatrixMultiplication::execute(Method method) {
     switch (method) {
         case Method::IJK:
-            runMethod(Target::Basic::ijk, method);
-            break;
-        case Method::IJK_COLLAPSED:
-            runMethod(Target::Basic::ijkCollapsed, method);
-            break;
-        case Method::BLOCKED_SHMEM:
-            runMethod(Target::Blocked::shmem, method);
-            break;
-        case Method::BLOCKED_SHMEM_MEM_DIRECTIVES:
-#if NO_MEM_DIRECTIVES
-            if (verbose) {
-                std::cout << "Skipping tiled shared memory matrix multiplication due to compiler flag." << std::endl;
-                std::cout << "To enable set NO_MEM_DIRECTIVES to false." << std::endl << std::endl;
-            }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
-#else
-            runMethod(Target::Blocked::memoryAllocator, method);
-#endif
-            break;
-        case Method::IJK_COLLAPSED_LOOP:
-#if NO_LOOP_DIRECTIVES
-            if (verbose) {
-                std::cout << "Skipping loop directive matrix multiplication (ijk_collapsed_loop) due to compiler flag."
-                          << std::endl;
-                std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
-            }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
-#else
-            runMethod(Target::Loop::ijkCollapsedLoop, method);
-#endif
+            runMethod(Target::ijk_basic, method);
             break;
         case Method::IJK_LOOP:
 #if NO_LOOP_DIRECTIVES
@@ -106,38 +78,31 @@ void MatrixMultiplication::execute(Method method) {
                           << std::endl;
                 std::cout << "To enable set NO_LOOP_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0, 0});
 #else
-            runMethod(Target::Loop::ijkOnlyLoop, method);
+            runMethod(Target::ijk_loop, method);
 #endif
             break;
-        case Method::BLOCKED_K:
-            runMethod(Target::Blocked::openmpBlocking, method);
+        case Method::BLOCKED_AB:
+            runMethod(Target::blocked_ab, method);
             break;
-        case BLOCKED_SHMEM_REDUCED_BC:
-            runMethod(Target::Blocked::reducedBankConflict, method);
-            break;
-        case Method::IJK_COLLAPSED_SPMD:
-            runMethod(Target::Basic::ijkCollapsedSPMD, method);
-            break;
-        case BLOCKED_K_THREAD_LIMIT:
-#if !OVERWRITE_DEFAULT_NUMS
+        case Method::BLOCKED_AB_MEM_ALLOCATOR:
+#if NO_MEM_DIRECTIVES
             if (verbose) {
-                std::cout << "Skipping blocked with overwrite due to compiler flag."
-                          << std::endl;
-                std::cout << "To enable set OVERWRITE_DEFAULT_NUMS to true." << std::endl << std::endl;
+                std::cout << "Skipping blocked (A & B) matrix multiplication due to compiler flag." << std::endl;
+                std::cout << "To enable set NO_MEM_DIRECTIVES to false." << std::endl << std::endl;
             }
-            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0});
+            runResults.push_back({methodNamesMapping[method], "NOT COMPILED", warmup, repetitions, MATRIX_SIZE, 0, 0, 0, 0, 0, 0, 0});
 #else
-            runMethod(Target::Blocked::openmpBlockingThreadLimit, method);
+            runMethod(Target::blocked_ab_mem_allocator, method);
 #endif
             break;
-        case Method::IJK_REDUCTION:
-            runMethod(Target::Basic::ijkReduction, method);
+        case Method::BLOCKED_A:
+            runMethod(Target::blocked_a, method);
             break;
     }
 }
 
 void MatrixMultiplication::writeFile() {
-    Output::writeOutput(filename, csv ? Output::FileType::CSV : Output::FileType::TXT, runResults);
+    Output::writeOutput(filename, csv ? Output::FileType::CSV : Output::FileType::TXT, runResults, suffix);
 }
